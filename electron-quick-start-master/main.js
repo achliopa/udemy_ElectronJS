@@ -5,37 +5,32 @@ const app = electron.app
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow
 
-// bcrypt async
-var bcrypt = require('bcrypt');
-const saltRounds = 10;
-const myPlaintextPassword = 's0/\/\P4$$w0rD';
-const someOtherPlaintextPassword = 'not_bacon';
-
 const path = require('path')
 const url = require('url')
-//
-bcrypt.hash(myPlaintextPassword, saltRounds, function(err, hash) {
-  // Store hash in your password DB.
-   console.log("Hassed Pasword: "+hash);
-});
-//
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 
-console.log("main.js executing");
+let mainWindow;
+let childwindow
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.on('ready', function (e) {
 
-let mainWindow
-
-function createWindow () {
-  console.log("creating main window");
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 1200, height: 800})
+  mainWindow = new BrowserWindow({width: 1200, height: 600})
+  childWindow = new BrowserWindow({width: 800, height: 400, parent: mainWindow})
 
   // and load the index.html of the app.
-  console.log("loading index.html into mainWindow");
   mainWindow.loadURL(url.format({
     pathname: path.join(__dirname, 'index.html'),
+    protocol: 'file:',
+    slashes: true
+  }))
+
+  childWindow.loadURL(url.format({
+    pathname: path.join(__dirname, 'index_child.html'),
     protocol: 'file:',
     slashes: true
   }))
@@ -45,18 +40,20 @@ function createWindow () {
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
-    console.log("mainWindow closed");
     // Dereference the window object, usually you would store windows
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
     mainWindow = null
   })
-}
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+    // Emitted when the window is closed.
+  childWindow.on('closed', function () {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+    childWindow = null
+  })
+})
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {

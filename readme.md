@@ -177,7 +177,108 @@ bcrypt.hash(myPlaintextPassword, saltRounds, function(err, hash) {
 ### Lecture 9 - App
 
 * [electron.app documentation](https://electronjs.org/docs/api/app)
+* electron.app controls our application's event lifecycle
+* *ready* event fires when the app has launced successfully. in quickstart project he called createWindow callback func to ste the BrowserWindow instance
+* we clean up form previous sections code the quickstar project
+* we make createWIndow an anonymous function, cut it and add it as ready events callback
+* we add a console.log at its start
+* we start the app and see the log message at window launch
+* we can probe the ready status of the app at any momenth with the `app.isReady()` call. we add this at var initialization part of our code. we start thea pp and see false. we add it in a setTimeout callback and see true as it gets acalled after the app launches
+
+```
+setTimeout(function(){
+  console.log(app.isReady());
+},3000)
+```
+
+* we can use this prope and event to read a file or start a remote connection at app start.
+* ready event has an event object we can pass in our anonymous callback function an log it.
+
+```
+{ preventDefault: [Function: preventDefault],
+  sender: 
+   App {
+     domain: null,
+     _events: 
+      { login: [Function],
+        'certificate-error': [Function],
+        'select-client-certificate': [Function],
+        quit: [Function],
+        'web-contents-created': [Function],
+        'session-created': [Function],
+        'will-quit': [Function],
+        ready: [Function],
+        'window-all-closed': [Array],
+        'browser-window-created': [Function],
+        activate: [Function] },
+     _eventsCount: 11,
+     _maxListeners: undefined,
+     setApplicationMenu: [Function: setApplicationMenu],
+     getApplicationMenu: [Function: getApplicationMenu],
+     commandLine: 
+      { appendSwitch: [Function: appendSwitch],
+        appendArgument: [Function: appendArgument] },
+     launcher: 
+      { setBadgeCount: undefined,
+        getBadgeCount: undefined,
+        isCounterBadgeAvailable: undefined,
+        isUnityRunning: undefined },
+     allowNTLMCredentialsForAllDomains: [Function] } }
+```
+* another useful event is *before-quit* which gets fired when we ask to quit the app but before the app quits. we can use it to do cleanapp tasks or persist status
+* we test it bu adding a listener to do a simple log
+```
+app.on("before-quit", function(e){
+  console.log("App is abou to quit");
+})
+```
+by using the passes events preventDefault() method i can prevent the quit in the listener. this hold only for normal quit(ctr+q) for ctr+c in terminal or alt+f4 or x in windows commands this does not hold
+* many events in API are mac specific while others are cross platform.
+* we will test the *browser-window-blur* and "browser-window-focus" events by adding dummy listenters.
+
+```
+app.on("browser-window-blur", function(e){
+  console.log("window out of focus");
+})
+
+app.on("browser-window-focus", function(e){
+  console.log("window in focus");
+})
+```
+* we test them by clicking in the app and out of the app. we see the logs toggle. so it works
+electron.app provides methods to invoke UI events or app lifecycle events on demand (e.g app.quit())
+* `app.getPath(name)` allows us to get file ssytem paths for default directories
+* `app.setBadgeCount()` works on linux or mac it is used to show ntifications on app icon. in app icon it has a number 
 
 ### Lecture 10 - BrowserWindow Getting Started
 
 * [BrowserWindow documentation](http://electron.atom.io/docs/api/browser-window/)
+* BrowserWindow is the core of any electron app. it is where the native app becomes web-based
+* its important to make our app look and feel like a native app
+* once our app is ready we create the BrowserWindow instance by calling `new BrowserWindow({width: 800, height: 600})`
+* after instanciating we usually call loadURL('') to load a local html file usually index.html. we can load aremote url instead like google.com. or we can pass a url.format() method to explicitly define what we are passing with a config object.
+* in the documentation of BrowserWindow we can learn how to show a window gracefully. this refers to the wait period between when app launches till the actual content loads in. this transition and wait time is called flicker
+* a technique is to set `show: false` in the window instantiation config object after height. so window is not shown at creation. then we use  an BrowserWindow ready-to-show even handler to show the window when content is reeady. we use oncce instead of on as we want to listen to the event only once.
+
+```
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show()
+  })
+```
+
+* the improvent is more dramatic if we load remote content
+* if we dont want to wait till we see the app after we launch it we can set the backgorund color at window instantiation call config object to match the background color of the html we are loading (remove flicker)
+
+### Lecture 11 - Browser Window - Parent & Child Windows
+
+* [Parent & Child Window Documentation](https://electronjs.org/docs/api/browser-window#parent-and-child-windows)
+* we look into parent and child relationships between multiple windows
+* we can create multiple browser windows  in a single app and they will behave independent from each other
+* we  test it by adding a childWindow var and cping the mainWIndow  code for childWindow in the app.on('ready') event handler callback.
+* i laucnh the app , both windows are indepentend and have their own lifecycle,. wehen both close the app quits.
+* i can set mainwindow as childwindows parent by `  childWindow = new BrowserWindow({width: 800, height: 400, parent: mainWWindow})` the result is that if i close mainwindow app quits even if childwindow is open
+* we can make childWindow a modal window by setting `modal: true` in cofig object. modal window is a dummy window overlaying the main window. modal window behaviour is platform specific. in MAC it behaves like dropdown. so if combined with the reeady-to-show event technique for remote content as we saw before we make an nice droppdown effect
+
+### Lecture 12 - BrowserWindow: FrameLess Window
+
+* [FramelessWindow Doc](https://electronjs.org/docs/api/frameless-window)
