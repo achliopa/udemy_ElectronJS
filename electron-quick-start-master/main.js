@@ -1,5 +1,7 @@
 const electron = require('electron')
+const windowStateKeeper = require('electron-window-state');
 require("electron-reload")(__dirname)
+
 // Module to control application life.
 const app = electron.app
 // Module to create native browser window.
@@ -12,25 +14,47 @@ const url = require('url')
 // be closed automatically when the JavaScript object is garbage collected.
 
 let mainWindow;
-let childwindow
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function (e) {
 
+  let winState = windowStateKeeper({
+    defaultWidth: 1200,
+    defaultHeight: 600
+  });
+
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 1200, height: 600})
-  childWindow = new BrowserWindow({width: 800, height: 400, parent: mainWindow})
+  mainWindow = new BrowserWindow({width: winState.width, height: winState.height, x: winState.x, y: winState.y});
+
+  winState.manage(mainWindow);
+
+
+  mainContents = mainWindow.webContents
+
+  mainContents.on("new-window", (e,url)=> {
+    console.log("New Window Created for: "+url);
+    e.preventDefault();
+    let modalWindow = new BrowserWindow({width: 600, height: 300, modal: true, parent: mainWindow});
+    modalWindow.loadURL(url);
+
+    modalWindow.on('closed', function () {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+      modalWindow = null
+    })
+  });
+
+  mainContents.on("context-menu", (e,params) => {
+    // console.log("Context menu opened on: ", + params.mediaType + " at (x,y):"+ params.x+","+params.y);
+    console.log("User selecteed text: "+params.selectionText);
+    console.log("Selection can be copied: "+params.editFlags.canCopy);
+  });
 
   // and load the index.html of the app.
   mainWindow.loadURL(url.format({
     pathname: path.join(__dirname, 'index.html'),
-    protocol: 'file:',
-    slashes: true
-  }))
-
-  childWindow.loadURL(url.format({
-    pathname: path.join(__dirname, 'index_child.html'),
     protocol: 'file:',
     slashes: true
   }))
@@ -46,13 +70,6 @@ app.on('ready', function (e) {
     mainWindow = null
   })
 
-    // Emitted when the window is closed.
-  childWindow.on('closed', function () {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-    childWindow = null
-  })
 })
 
 // Quit when all windows are closed.

@@ -3,14 +3,35 @@
   <head>
     <meta charset="UTF-8">
     <title>Hello World!</title>
+    <style type="text/css" media="screen">
+/*      * {
+        cursor: default;
+      }*/
+      body {
+        height: 100%;
+        background-color: red;
+     /*   -webkit-user-select: none;*/
+        -webkit-app-region: drag;
+      }
+
+      select {
+        -webkit-app-region: no-drag;
+      }
+    </style>
   </head>
   <body>
-    <h1>HTML Content loaded from index.html  usisng Electron-reload </h1>
+    <h1>Hello world </h1>
     <!-- All of the Node.js APIs are available in this renderer process. -->
-    We are using Node.js <script>document.write(process.versions.node)</script>,
+   <!--  We are using Node.js <script>document.write(process.versions.node)</script>,
     Chromium <script>document.write(process.versions.chrome)</script>,
-    and Electron <script>document.write(process.versions.electron)</script>.
-
+    and Electron <script>document.write(process.versions.electron)</script>. -->
+    <h3><a href="https://google.com" target="_blank">Google</a></h3>
+    
+    <select name="" class="">
+      <option value="option">Option One</option>
+      <option value="option">Option Two</option>
+      <option value="option">Option Three</option>
+    </select>
     <script>
       // You can also require other files to run in this process
       require('./renderer.js')

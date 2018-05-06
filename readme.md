@@ -282,3 +282,176 @@ electron.app provides methods to invoke UI events or app lifecycle events on dem
 ### Lecture 12 - BrowserWindow: FrameLess Window
 
 * [FramelessWindow Doc](https://electronjs.org/docs/api/frameless-window)
+* a frameles window is a browser window without any of the os interface components like a toolbar. we makeour mainwindow a frameless one to see how it looks
+* the way to define it is `  mainWindow = new BrowserWindow({width: 1200, height: 600, fram: false})`
+* we get a no toolbar clean window(like apples quick time player)
+* we can resize it but not drag it, devtools are still invoked with shift+ctrl+i
+* to be able to drag the window we need to define dragable areas in our html content
+* we use css for that using webkit `-webkit-app-region: drag;` in the example below we make the same tag (body) elements non-selectable
+
+```
+      body {
+        height: 100%;
+        background-color: red;
+        -webkit-user-select: none;
+        -webkit-app-region: drag;
+      }
+```
+
+* we add a droplist in HTML (select element) and we dont want it dragable so we se it in CSS to  -webkit-app-region: no-drag; this make it a normal form element again
+* when we hover over text we get the selection cursor. i fix this with a * css selector {cursor: default}. 
+* much of this behaviour is platform dependent so we need to test on all platforms
+
+### Lecture 13 - BrowserWIndow: Properties,Evenets & Methods
+
+* [BrowseWindow class doc](https://electronjs.org/docs/api/browser-window#class-browserwindow)
+* [Instance events doc](https://electronjs.org/docs/api/browser-window#instance-events)
+* [Static Methods](https://electronjs.org/docs/api/browser-window#static-methods)
+* in the link provided on BrowserWindow class we can see a list of options that can be passed in its constructor
+* we can set fonts as a window option and not in css. to use these fonts (system fonts) in css we have to set `font: caption`
+* we have instance events like focus. these events refer to the window and not in the app. in that way if i have 2 windows in my app there will be distinct focus events for each window. if i use apps *browser-window-focus* it gets fired whichever window i focus on
+* useful window events are "unresponsive" and "responsive" determined from when  the web page becomes unresponsive and responsive. if page is unresponsive the main process running on node (app) is still responsive most likely
+* static methods are utility methods we can use to identify browser window instances. these are like class methods in ES6 working on tehe class not the instance. e.g `BrowserWindow.getAllWindows()` we get the intances objects back. 
+* we can get the window object by id with `BrowserWindow.fromId(id)` or get the window currently focused. we can get the id by eg `mainWindow.id`
+* we have the instance methods that belong to a browserindow instance object e.g `mainWindow` with them we can get browser params like if its focused or if its a modal etc. an interesting is `win.setAlwaysOnTop()` which keeps the broser window on top, reload() to refresh window conttents .getParentWindow() or getChildWindow()
+
+### Lecture 14 - Browser Window: Managing Window State
+
+* [npm electron-window-state module](https://www.npmjs.com/package/electron-window-state)
+* by default electron does not persist state from closing to opening
+* electron-window-state solves the problem of data persistence
+* we install the package `npm i --save electron-window-state`
+*  we import the package in main.js `const windowStateKeeper = require('electron-window-state');`
+* we define a window state variable passing default values in the config object (see doc)
+
+```
+let winState = windowStateKeeper({
+    defaultWidth: 1200,
+    defaultHeight: 600
+  });
+```
+* in window instance construct we set params from winstate `  mainWindow = new BrowserWindow({width: winState.width, height: winState.height, x: winState.x, y: winState.y})`
+* in the ready listener we pass window instance to the state so that values to be retrieved (see constructor) will be saved prior to exit for persistence
+
+```
+  winState.manage(mainWindow);
+```
+
+### Lecture 15 - BrowserWindow: webContents
+
+* [Bunny Video](https://peach.blender.org/download/)
+* [webContents doc](https://electronjs.org/docs/api/web-contents)
+* [basic Auth wiki](https://en.wikipedia.org/wiki/Basic_access_authentication)
+* [basic Auth tutorial](https://www.digitalocean.com/community/tutorials/how-to-set-up-password-authentication-with-apache-on-ubuntu-14-04)
+* BrowserWindow.webContents allows more direct control over the content being loaded. 
+* BrowserWindow is where the content gets loaded and webContents is the content itself
+* we access it on an instance of BrowserWindow (e.g mainWindow). we define a new var `mainContents = mainWindow.webContents` and logit
+
+```
+WebContents {
+  webContents: [Circular],
+  history: [],
+  currentIndex: -1,
+  pendingIndex: -1,
+  inPageIndex: -1,
+  _events: 
+   { 'navigation-entry-commited': [Function],
+     'ipc-message': [Function],
+     'ipc-message-sync': [Function],
+     'pepper-context-menu': [Function],
+     'devtools-reload-page': [Function],
+     'will-navigate': [Function],
+     'did-navigate': [Function],
+     destroyed: { [Function: bound onceWrapper] listener: [Function] },
+     'devtools-opened': [Function],
+     '-new-window': [Function],
+     '-web-contents-created': [Function],
+     '-add-new-contents': [Function],
+     move: [Function],
+     activate: [Function],
+     'page-title-updated': [Function],
+     'load-url': { [Function: bound onceWrapper] listener: [Function] } },
+  _eventsCount: 16,
+  _maxListeners: 0,
+  browserWindowOptions: { width: 296, height: 207, x: 2736, y: 486 } }
+
+```
+
+* it has an extensive API and is a node event emitter.
+* it has static methods(class methods) used to get info on the instances, or access them by id (like the BrowserWindow static methods)
+* instance events are used to build listeners. e.g listen for the state of the content we load in e.g *did-finish-load*, other events include *did-fail-load* *did-start-loading* *did-stop-loading*
+* there are events related to redirects, user input
+* we test the *new-window* event. we add an anchor link in html setting target="_blank" to open a new tab for the link. new tab in electron means new window so we trigger the event. url is passed as argument to the callback. we see the log on terminal
+
+```
+  mainContents.on("new-window", (e,url)=> {
+    console.log("New Window Created for: "+url);
+  });
+```
+
+* we can set the new-window to be a modal window (dropdown is working only on mac)
+
+```
+mainContents.on("new-window", (e,url)=> {
+    console.log("New Window Created for: "+url);
+    e.preventDefault();
+    let modalWindow = new BrowserWindow({width: 600, height: 300, modal: true, parent: mainWindow});
+    modalWindow.loadURL(url);
+
+    modalWindow.on('closed', function () {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+      modalWindow = null
+    })
+  });
+```
+
+* we can implement listenters for *will-navigate* and *did-navigate* to capture navigate events in browser. eg navigate through local files
+* there are also login events. this allows the app to access password protected content
+* to demo basic auth tutor creates a subdomain on his localhost and add basic auth. he navigates to it in his browser and gets a modal to enter credentialso access the content
+* he then adds a link to the secured content from the electron app index.html. when navigating there we get an unauthorized message
+* he uses the *login* event listenter to pass user credential to acess secure content
+
+```
+  mainContents.on("login",(e,req,authInfo,callback)=>{
+    e.preventDefault();
+    callback("admin","nosecret")
+  });
+```
+
+* media events are useful to capture media play events int eh browser. we add a video content to our html
+
+```
+    <video width="400" controls>
+      <source src="mov_bbb.mp4" type="video/mp4">
+    </video>
+```
+
+* and capture the media play event with a listener
+
+```
+  mainContents.on("media-started-playing",()=>{
+    console.log("Video Started");
+  });
+```
+
+* we can control and capture any aspect of our browser app fromt he main process
+* other events are *cursor-changes* and *context-menu* (right click) that we can use to get info or capture text or user actions. in the listenr below we capute content type and position of right click event . and if text is selected and then right clicked we can capture the text in the event and the copy text ability. we can then manage text edit actions
+
+
+```
+  mainContents.on("context-menu", (e,params) => {
+    // console.log("Context menu opened on: ", + params.mediaType + " at (x,y):"+ params.x+","+params.y);
+    console.log("User selecteed text: "+params.selectionText);
+    console.log("Selection can be copied: "+params.editFlags.canCopy);
+  });
+```
+
+* we can control navigation file downloads and many more.load javascripts (e.g for remote content when we dont have access to javascript loader
+
+### Lecture 16 - Session: Getting Started
+
+* [Destructuring Assignemtn](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#Object_destructuring)
+* [session documentation](https://electronjs.org/docs/api/session)
+*
