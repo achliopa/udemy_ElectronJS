@@ -454,4 +454,57 @@ mainContents.on("new-window", (e,url)=> {
 
 * [Destructuring Assignemtn](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#Object_destructuring)
 * [session documentation](https://electronjs.org/docs/api/session)
-*
+* the electron session module is what is used to manage state in our app (it is a part of the Main PRocess API). managing cookies, local files, webSQL, downloads and proxy settings
+* we will learn how to create multiple sessions in memory and persist it. and how to attach these sessions to individual browser windows
+* by default electron creates a default session for us and the session is persisted across app restarts. 
+* the default session gets attached to any new browserwindow instance we create
+* we can access the session in 2 ways
+  * a. through `mainWindow.webContents.session`
+* we instantiate and log the session instance. we get an empty object
+
+```
+  let mainSession = mainWindow.webContents.session; 
+console.log(mainSession);
+```
+
+* we go to devtools ->Application-> local storage->file and add a key value pair. we restart the app and access devtools. the key-calue is still there. so it persists
+* if our session was an in-memory session it would have completely reset itself
+* to understand the nature of default session we create a second browserwindow instance and create a session instance for it. we use `Object.is(mainSession,altSession)` to see if both windows session objects are the same. we launch the app and see that thjey are actually the same
+
+```
+  let mainSession = mainWindow.webContents.session; 
+  let altSession = altWindow.webContents.session; 
+  console.log();
+```
+
+* also we see in dev tools that both have the same localstorage key value pair
+* so all browserwindoes share the same default session unless specified otherwose. 
+* there is a second way to acess the session as a separate module. we import it `const session = electron.session`
+* we instantiate it `  let defaultSession = session.defaultSession;` and compare it to the other two session objects. they are the same
+* apart fromt he defaultsession we can create our own session `let appSession = session.fromPartition('partition1')`. we load it from an other partition (location). if we compare it with the defaultSession we see that it is different. we can attach our custom session to a window so that it does not use the default session. we pass it as a param at window creation `  altWindow = new BrowserWindow({width: 700,height: 600, webPreferences: {session: appSession}}`
+* we see that altSession equals our custom appSession
+* if we store a key value pair at local memory of altWindow it is not persistent. this is becouse our custom session is in-memory. to makei t persistent we have to prefix the partition name with *persist:* ``let appSession = session.fromPartition('persist:partition1')``
+* electron allows us to attach a suctom session to a window without creating it first. we delete the session declaration and instead of passing sessionin window instace params at cr4eation we pass the partition `altWindow = new BrowserWindow({width: 700,height: 600, webPreferences: {partition: "persist:partition1"}} );`. we see that local storage data are there. so what identifies the session is its partition
+* to clear data from a session we use `mainSession.clearSotrageData()`. we restare and data are gone
+
+### Lecture 17 - Session: Cookies
+
+* [cookies documentation](https://electronjs.org/docs/api/cookies)
+* a familiar and easy way to store data in our app are cookies.
+* electron adheres to cookies spec and allows us to use cookies as a data store unlike the typical web usage. its good to store small data like app state or user data on unique sessions.
+* we can access the cookies class on the session module `mainSession.cookies` using the .get() method where we can apply filters, empty object means get all, also we pass a callback that will fire once the cookies are read
+
+```
+  mainSession.cookies.get({}, (err,cookies)=>{
+    console.log(cookies);
+  });
+```
+* we see that cookies is an array, we will access some external content that stores and load cookies to see them in action. we load github log in and then quit. when we restart we see the cookie array has an object with the login data for github
+* we can create our own cookies with cookies.set({url: 'https://myapp.com', name: 'cookie1',value: 'cookie_value', domain: 'myapp.com'}, (eer)=>{}) passing an object with the default cookie params(good for filtering) and a callback
+* our nerwly created cokie has no expiration date and therefore is a session cookie. to persist it we have to add an expirationdate param to it
+* we can filter cookies on retrieval by e.g setting name: value in get method object
+
+### Lecture 18 - Session:DownloadItem
+
+* [DownloadITem doc](https://electronjs.org/docs/api/download-item)
+* 

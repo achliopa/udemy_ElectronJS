@@ -1,7 +1,7 @@
 const electron = require('electron')
 const windowStateKeeper = require('electron-window-state');
 require("electron-reload")(__dirname)
-
+const session = electron.session
 // Module to control application life.
 const app = electron.app
 // Module to create native browser window.
@@ -23,44 +23,66 @@ app.on('ready', function (e) {
     defaultWidth: 1200,
     defaultHeight: 600
   });
-
+  // let appSession = session.fromPartition('persist:partition1');
   // Create the browser window.
   mainWindow = new BrowserWindow({width: winState.width, height: winState.height, x: winState.x, y: winState.y});
-
+  altWindow = new BrowserWindow({width: 700,height: 600, webPreferences: {partition: `persist:partition1`}} );
   winState.manage(mainWindow);
 
+  let defaultSession = session.defaultSession;
 
-  mainContents = mainWindow.webContents
+  let mainSession = mainWindow.webContents.session; 
+  let altSession = altWindow.webContents.session; 
 
-  mainContents.on("new-window", (e,url)=> {
-    console.log("New Window Created for: "+url);
-    e.preventDefault();
-    let modalWindow = new BrowserWindow({width: 600, height: 300, modal: true, parent: mainWindow});
-    modalWindow.loadURL(url);
-
-    modalWindow.on('closed', function () {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-      modalWindow = null
-    })
+  mainSession.cookies.get({}, (err,cookies)=>{
+    console.log(cookies);
   });
-
-  mainContents.on("context-menu", (e,params) => {
-    // console.log("Context menu opened on: ", + params.mediaType + " at (x,y):"+ params.x+","+params.y);
-    console.log("User selecteed text: "+params.selectionText);
-    console.log("Selection can be copied: "+params.editFlags.canCopy);
+  mainSession.cookies.set({url: 'https://myapp.com', name: 'cookie1',value: 'cookie_value',domain: 'myapp.com', expirationDate: 999999999999999},(err)=>{
+    console.log('Cookies Set');
+    mainSession.cookies.get({}, (err,cookies)=>{
+      if(err){
+        console.log(err);
+      } else {
+        console.log(cookies);
+      }
+    });
   });
+  // mainSession.clearStorageData();
+  // altSession.clearStorageData();
+  // console.log(Object.is(appSession,altSession));
+  // mainContents = mainWindow.webContents
+
+
+  // mainContents.on("new-window", (e,url)=> {
+  //   console.log("New Window Created for: "+url);
+  //   e.preventDefault();
+  //   let modalWindow = new BrowserWindow({width: 600, height: 300, modal: true, parent: mainWindow});
+  //   modalWindow.loadURL(url);
+
+  //   modalWindow.on('closed', function () {
+  //   // Dereference the window object, usually you would store windows
+  //   // in an array if your app supports multi windows, this is the time
+  //   // when you should delete the corresponding element.
+  //     modalWindow = null
+  //   })
+  // });
+
+  // mainContents.on("context-menu", (e,params) => {
+  //   // console.log("Context menu opened on: ", + params.mediaType + " at (x,y):"+ params.x+","+params.y);
+  //   console.log("User selecteed text: "+params.selectionText);
+  //   console.log("Selection can be copied: "+params.editFlags.canCopy);
+  // });
 
   // and load the index.html of the app.
-  mainWindow.loadURL(url.format({
+  mainWindow.loadURL('https://github.com');
+  altWindow.loadURL(url.format({
     pathname: path.join(__dirname, 'index.html'),
     protocol: 'file:',
     slashes: true
-  }))
-
+  }));
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  // mainWindow.webContents.openDevTools();
+  // altWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
@@ -68,6 +90,12 @@ app.on('ready', function (e) {
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
     mainWindow = null
+  })
+  altWindow.on('closed', function () {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+    altWindow = null
   })
 
 })
