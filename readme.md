@@ -507,4 +507,230 @@ console.log(mainSession);
 ### Lecture 18 - Session:DownloadItem
 
 * [DownloadITem doc](https://electronjs.org/docs/api/download-item)
-* 
+* in previous lecture we saw the dowload event. nowwe will see how to use this event and the associated DowloadItem class * a download event is an event we listen for on a electron session to intercept  a file download initiated from within the webCOntents
+* this event provides to the listenter callback func an instance f the downloadItem class
+* we add a downloadlink to our index.html. the default electron behaviour when we click is to pop up a propt window to select the downloaf destination
+* what we want is to set a preset destination and show a download progress bar in our app
+* to do that we add an event listener. this is an event of the session object. it returns the downloadItem,event ad webCOntent from where download was initiated. we use the will-donload to print the filnaem of the file we intend to download
+
+```
+  mainSession.on("will-download", (e,downloadItem,webContent)=> {
+    console.log(downloadItem.getFilename);
+  })
+```
+
+* we will now set a predefined download location. this is easy. we save the filename and se the path passing a relative or absolute path + filename. all this in the callback we saw before
+
+```
+let file = console.log(downloadItem.getFilename);
+    downloadItem.setSavePath('downloads/'+file);
+```
+
+* we want to print the status and progress of the download. we need the total filesize so as to calculate the percentage. then we use the dowloadItem update event which fires whenever status is updates to  get the bytes and calc the %. we log the progress only when download is in progressing state
+
+```
+  mainSession.on("will-download", (e,downloadItem,webContent)=> {
+    let file = console.log(downloadItem.getFilename);
+    downloadItem.setSavePath('downloads/'+file);
+
+    let size = downloadItem.getTotalBytes();
+
+    downloadItem.on("updated",(e, state)=>{
+      let progress = Math.round((downloadItem.getReceivedBytes() / size) * 100);
+
+      if (state === 'preogressing'){
+        console.log(progress+'%')
+      }
+    });
+  });
+```
+
+* we can improve the log to be logged in same line with 
+
+```
+      if (state === 'preogressing'){
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        process.stdout.write('Dowloaded: '+progress+'%')
+      }
+```
+
+* we can also listen to the *done* event (state === "completed") to print a finished message. this is an one time event so we use once
+* in a real app these data will pass to the HTML content
+
+### Lecture 19 - Dialog
+
+* [Dialog doc](https://electronjs.org/docs/api/dialog)
+* in thos lecture we will learn how to create native dialogs with the Main process (electron app) dialog module
+* a dialog is a system prompt to select a file location , ask for an answer etc
+* we import the module `const dialog = electron.dialog`
+* we write a function to trigger a dialog winodw setting the initial path and a button name. we also pach a callback to print the file we select on console. we use the dialog.showOpenDialog() method
+
+```
+function showDialog(){
+  dialog.showOpenDialog({defaultPath: "C:\\Users\\a.chliopanos\\workspace", buttonLabel: 'Select Logo'}, (openPath)=>{
+    console.log(openPath);
+  });
+}
+```
+
+* we pass it to a setTimeout method in our main proigram and see it fire. when we select a file we see it on console  `[ 'C:\\Users\\a.chliopanos\\workspace\\bitmap.png' ]`
+* to fine tune the dialog we add a properties param adding the ability to open the file we select, allow multiselection to select multiple files and add the ability to create anew dir `properties: ['openFile', 'multiSelections','createDirectory']`
+* the way to open a save dialog is similar but in the callback we get the filame that will be saved
+
+```
+  dialog.showSaveDialog({defaultpath: "C:\\Users\\a.chliopanos"},(filename)=> {
+    console.log(filename)
+  });
+```
+
+* .showMessageDialog shows a dialog mesage to listen to buttons
+
+```
+function showDialog(){
+  let buttons =['Yes','No','Maybe']
+  dialog.showMessageBox({buttons, title: 'Electron Message DIalog', message: 'Please Select an answer', detail: 'A more descriptive message' }, (buttonIndex)=>{
+    console.log("user selected: "+buttons[buttonIndex]);
+  });
+}
+```
+
+### Lecture 20 - Accelerator & globalShortcut
+
+* [Accelerator doc](https://electronjs.org/docs/api/accelerator)
+* [globalShortcut doc](https://electronjs.org/docs/api/global-shortcut)
+* key shortcuts are useful in desktop apps. we will learn how to register global shortcuts our app can listen for
+* an accelerator is a string representation of a keyboard shortcut
+* docs provide a broad list of key codes and modifiers
+* there are also key like events like VolumeUp, MEdiaNextTrack etc
+* we will see how to register the accelarators. first we import the module `const globalShortcut = electron.globalShortcut;`
+* to register the accelarator we use the register() method passing the string representation and a callback. we add the code in our main funct
+
+```
+  globalShortcut.register('g', () => {
+    console.log('User pressed g');
+  });
+```
+
+* this is a global shortcut, so event fires even if the app is not in focus
+* electron provides combination keys to make the app cross platform (some keys are different across os)
+* we can programmaticaly register or unregister shortcuts with .unregister('string key shortcut') `globalShortcut.unregister('g');`
+
+### Lecture 21 - Menu & Menuitem
+
+* [Menu docs](https://electronjs.org/docs/api/menu)
+* [MenuItem class](https://electronjs.org/docs/api/menu-item)
+* electrons menu class allows us to create native menus to use as app main menu or as context menu
+* a menu isntance gets populated with menu items for which we use the MenuItem class
+* we start with importing both classes
+
+```
+const Menu = electron.Menu;
+const MenuItem = electron.MenuItem;
+```
+
+* we create a menu instace `let mainMenu = new Menu();`. we will now fill it with menu items. there are platform differences bewtween platforms noted in the docs
+```
+let menuItem1 = new MenuItem({
+  label: 'Electron',
+});
+```
+* we add items to menu with .append() `mainMenu.append(menuItem1);`
+* we set our custom menu as app menu with ` Menu.setApplicationMenu(mainMenu)`
+* we add submenus by nesting tehm inside
+```
+let menuItem1 = new MenuItem({
+  label: 'Electron',
+  submenu: [
+      {label: 'Item 1'},
+      {label: 'Item 2'}
+  ]
+});
+```
+* we can instantiate a whole menu + menuItems with the Menu.buildFromTemplate() static method passing the config object we passed in MenuItem constructor or an array for many top level items. 
+* we can export the config object templates from a file to make code modular
+* to add functionality to the meny we can use the click option to pass a callback function
+* we can add key shortcuts to the meny items using accelerators
+* we can disable a menuitem with enabled property
+```
+            {
+              label: 'Greet',
+              click: ()=> {console.log("hello")}
+              accelerator: 'Shift+g',
+              enabled: false
+            }
+```
+* there is another way to add functionality to a menu item by assigning a role. the role add built in or platform specific functionality to the app (undo,redo,copy, paste) the roles might change depending on content
+
+```
+      {
+        label: 'Toggle Developer Tools',
+        role: 'toggledevtools'
+      }
+```
+
+* a role can add its own label so we can set only the role withou label `role: 'togglefullscreen`
+
+### Lecture 22 - Menu: Context Menu
+
+* [Popup menu](https://electronjs.org/docs/api/menu#menupopupbrowserwindow-x-y-positioningitem)
+* [Context menu event](https://electronjs.org/docs/api/web-contents#event-context-menu)
+* we can capture right click events by webContent *context-menu* event
+* we create anew menu instance with some menu items
+```
+let contextMenu = new Menu.buildFromTemplate([
+  {role: 'copy'},
+  {role: 'paste'},
+  {type: 'separator'},
+  {role: 'undo'},
+  {role: 'redo'}
+]);
+```
+* we trigger it using the context-menu event with a popup() method
+
+```
+  mainWindow.webContents.on("context-menu", (e) => {
+    e.preventDefault();
+    contextMenu.popup();
+  });
+
+```
+
+### Lecture 23 - Tray
+
+* [Tray class doc](https://electronjs.org/docs/api/tray)
+* [nativeImage](https://electronjs.org/docs/api/native-image)
+* tray class extends our apps to use the OS application tray
+* there are 2 ways to interact with an app in the tray
+    * attach a menu to it.
+    * listen for uisers input in the tray icon
+* we import Tray `const Tray = electron.Tray;` create a tray instance passing a native image
+* we add a tootip with setToolTip() method
+* we can pass a menu to it with setContextMenu() passing a manu instance
+* the alternative to menu item is listen for event on th tray using the events offered. eg toggle visibility with click
+```
+let tray;
+
+function createTray(){
+  tray = new Tray('food.png');
+  tray.setToolTip('Electron App');
+  tray.setContextMenu(contextMenu)
+  tray.on("click",()=>{
+     mainWindow.isVisible()? mainWindow.hide():mainWindow.show();
+    })
+}
+```
+
+* and call the function in our app ready callback. we start and see the icon in the tray
+
+### Lecture 24 - Power Monitor
+
+* [PowerMonitor Doc](https://electronjs.org/docs/api/power-monitor)
+* powerMonitor module is simple and allows us to control the apps state depending on the os power status state (suspend,resume, on-ac, on batt)
+* we cannot even include this module before app is ready so all code must be in the ready listener.
+```
+  electron.powerMonitor.on('suspend',()=> {
+      console.log('system going to sleep')
+  });
+    cr
+```
