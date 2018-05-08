@@ -734,3 +734,294 @@ function createTray(){
   });
     cr
 ```
+
+## Section - IPC Communication
+
+### Lecture 25 - ipcMain & ipcRenderer
+
+* [ipcMain doc](https://electronjs.org/docs/api/ipc-main)
+* [ipcRenderer doc](https://electronjs.org/docs/api/ipc-renderer)
+* ipc = inter-process communication
+* it is used fo rmain process communication with renderer process. we use ipcMain module and ipcRenderer module. both are simple modules with few helper methods and event to listen to the ipc message channel, and send method to send a message to the channel
+* to use it in main.js we import  `const ipcMain = electron.ipcMain;` and in renderer.js we import `const { ipcRenderer} = require('electron');`. these are 2 implementation of the same functionality. 
+* we make asynchronous message transmissions to the specified channel with `ipcRenderer.send("channel1", "Hello from the renderer process")` for renderer => main message on channel1
+* we listen for messages on a channel with an event handler on speciufied channel, in our callback args is the actual data received
+
+```
+ipcMain.on("channel1",(e,args)=> {
+  console.log(args);
+});
+```
+
+* ipc comm is by default asynchronous and unidirectional . if want a send confirmation making the comm bidirectioinal our code is changed as follows
+
+```
+// @renderer.js
+ipcRenderer.send("channel1", "Hello from the renderer process")
+ipcRenderer.on("channel1", (e,args)=> {
+  console.log(args);
+})
+
+// @ main.js
+ipcMain.on("channel1",(e,args)=> {
+  console.log(args);
+  e.sender.send('channel1','Message Received on the main process')
+});
+```
+
+* not e that main in the callback sends a message to the sender. thi is because channels might be shared by >2 processes so he has to define he wants the mnessage to be directed to the sendter of the message he is listening to. renderer is logging in devTools
+* processes can use multiple channels, the methods are the same
+* to initiate comm from main to renderer the implementation is a little different. we need to identify to which renderer we send the message. to do this we use the BrowserWindow.webContents.on('did-finish-load',()=>{}) callback to palce the send message method `mainWindow.webContents.send()` so that it is directed to the respective window. the comms functions are the same. we have to define a channel as well
+* electron allows us to send synchronous messages as well so that process will block until it receives a responce(non-recommended). in our example renderer send a sync message using the .sendSync() method. it freezes untill main replies with an  event.returnValue. to make it obvious we set a timeout of 3secs
+
+```
+// @  main
+ipcMain.on('sync-channel',(e,arg)=>{
+  console.log('Sync message received')
+  setTimeout(()=>{
+    e.returnValue = 'A synchronous response from the main process';
+  },3000);
+});
+// @ renderer
+let mainResponse = ipcRenderer.sendSync('sync-channel', 'some request')
+```
+
+* we can send any form of data throught he channel (JSON,obkects). we can make it a powerful tools eg. passign a close param to kill the provess 
+
+```
+if(args.close) process.exit();
+```
+
+## Section 5 - Renderer Process API
+
+### Lecture 26 - Remote
+
+* [Remote Doc](https://electronjs.org/docs/api/remote)
+* [Node global module](https://nodejs.org/api/globals.html#globals_global)
+* remote module of the renderer API is a wrapper of the ipc to enable us to acces data on the main process without the need of using ipc
+* we import it to renderer.js `const remote = require('electron').remote;`
+* wif we consolelog the remote object we see all its content in devTools. it is made almost all of getter methods returning a reference to the object in the main process, arrays and buffers are not referenced rather than copied over. if we modify them in renderer changes wont pass to main
+* to demo its power we will access the dialog module from remote with `var dialog = require('electron').remote.dialog;`
+* we can then use it exactly lik ein main `dialog.showMessageBox({message: 'A message dialog invoked via renderer.js', buttons: ['OK']});`
+* we see that the invokation happend before content finish rendering on screen. this is because of the way the remote module communicate with the main process by a synchronous IPC message. main process is waiting for the messagebox callback to fire, before setting the return value and setting it back. 
+* this is rarely the case as it is unlikely to promp a message before rendering content
+* the dialog box is actually created in the main process
+* references to the main process wil prevent them from being collected by garbage collecctor in main process
+* So ONCE WE ARE DONE WITH A LISTENER TO THE REMOTE OBJECT UNREGISTER
+* we can reference BroswerWindow with remote to create windows from renderer
+
+```
+const BrowserWindow = require('electron').remote.BrowserWindow;
+let win = new BrowserWindow({width: 400, height: 200});
+win.loadURL('https://google.com');
+```
+
+* an other neat feat of remote is the access to node.js global module (global array available across the node process). 
+* it is useful as renderer is not part of the node main process 
+* we create aglobal propery in main.js `global['app_version'] = 1.1;` and access it in renderer with `remote.getGLobal('app_version');`
+* remote module is useful when dealing with user interaction. e.g quit the app from the renderer 
+
+```
+const {app,dialog} = require('electron').remote;
+dialog.showMessageBox({message: `Are you sure you want to quit?`, buttons: ['Quit','Cancel']}, (buttonIndex)=> {
+    if(buttonIndex === 0) app.quit();
+  });
+```
+
+* this time  app is not frozen because we pass a callback (to act as return value)
+
+### Lecture 27 - BrowserWindowProxy
+
+* [BrowserWindowProxy docs]https://electronjs.org/docs/api/browser-window-proxy)
+* [MDN window.open() doc](https://developer.mozilla.org/en-US/docs/Web/API/Window/open#Position_and_size_features)
+* [MDN Window doc](https://developer.mozilla.org/en-US/docs/Web/API/Window)
+* [MDN Document doc](https://developer.mozilla.org/en-US/docs/Web/API/Document)
+* BrowserWindowProxy object is an instance of electrons browser window that gets returned from native window.open() method
+* in index.html opened in the mainWidow(opened in main.js) we add a link to google with target blank (open in new tab).
+* when I click the link electron creates a new window with all default options
+* we have no way to manage this window in renderer
+* we add in the href anchor tag (index.html) the `onlick="open_win()"` vanilaJS code to open a new window for the link `<h3><a onclick="open_win()" >Google</a></h3>`
+* we get an error that open_win is not implemented. so we implement it inline in index.html
+```
+      const open_win = () => {
+        window.open('https://google.com')
+      }
+```
+* we can use this method to open/close a window from index.html
+
+```    
+<style type="text/css" media="screen">
+      * {
+        cursor: pointer;
+      }
+</style>
+      <h3><a onclick="open_win()" >Open Google</a></h3>
+    <h3><a onclick="close_win()" >Close Google</a></h3>
+    <script>
+
+      let win; 
+      const open_win = () => {
+        win = window.open('https://google.com')
+      }
+      const close_win = () => {
+        win.close();
+        console.log('close window')
+      }
+    </script>
+```
+* to create an alert in this window we use win.eval() with executes passed js code
+```
+<h3><a onclick="alert_win("MEsage")" >Close Google</a></h3>
+const alert_win = (msg)=> {
+  win.eval(`alert('${msg}')`)
+}
+```
+
+* onclick inline is messy. we can add id tag to the anchor tag and in JS script use vanillaJS with 
+
+```
+document.getElementById('google_link').setEventListener('click', ()=>{
+  //logic
+  })
+```
+* now we will learn how to pass custom features to new window. window takes 3 arguments: URL, frame name(overwriten by loaded html title) , and frame features passed as string e.g. `win = window.open('https://google.com','Google Window', 'resizabler=no, width=950')`
+
+### Lecture 28 - WebFrame
+
+* [webFrame doc](https://electronjs.org/docs/api/web-frame)
+* whenever we deal with a browser window it will contain webContents. web contents is rendered to the webFrame. 
+* webFrame dictates aspects of webContents rendering (e.g zoomLevel)
+*  in our index.html we add an img tag 
+```
+<body>
+  <img src="http://placehold.it/200x150" alt=""/>
+  <hr>
+  <button id="zoom_in">Increase Zoon</button>
+  <button id="zoom_out">Decrease Zoon</button>
+  <button id="zoom_reset">Reset Zoon</button>
+</body>
+<script>
+  const {webFrame} = require('electron');
+
+  let zoom = 0
+  document.getElementById('zoom_up').addEventListener('click,()=>{
+    webFrame.seZoomLevel(++zoom);
+  });
+  document.getElementById('zoom_down').addEventListener('click,()=>{
+    webFrame.seZoomLevel(--zoom);
+  });
+  document.getElementById('zoom_reset').addEventListener('click,()=>{
+    webFrame.seZoomLevel(0);
+  });
+</script>
+```
+
+* this framework allows us to inject custom JS in the webframe
+```
+  <textArea id="code" name="name" rows="10" cols="50"></textArea>
+  <button id="run_js">Run JS</button>
+<script>
+  document.getElementById('run_js').addEventListener('click,()=>{
+    let code = document..getElementById('code').value;
+    webFrame.executeJavaScript(code);
+  });
+</script>
+```
+
+* we can get info on all resources loaded in the webFrame with `webFrame.getResourceUsage()`
+
+### Lecture 29 - Webview Tag
+
+* [Webview Tag doc](https://electronjs.org/docs/api/webview-tag)
+* [DOM Element Ref](https://www.tjvantoll.com/2012/07/19/dom-element-references-as-global-variables/)
+* [DOM element ids are gobals](http://2ality.com/2012/08/ids-are-global.html)
+* webVew is an html tag <webview> that gives us absolute control over the content loaded in it and behaves like a elecctron browser window
+* a webview tag runs in its own process, electron app is protected by the webview content
+* brwser window exposed node API so this separation is important
+* we add a webview tag in index.html `<webview id="webview1" src="page1.html"></webview>`
+* we add aboilerplate pag1.html which renders as an embedded window like an iframe. we can style the webview, or add properties to the tag (see doc)
+* where webview gets unconventional is when we refrence it as dom element in the parent page `const webview = document.getElementById('webview1');`. we can start listening for event from it. important event are *did-start-loading* and *did-stop-loading* as we need to load first before performing actions in it. 
+* we can insert CSS with .insertCSS()
+* we can pass text from another elemenbt in the webview element
+* chromium adds elements to the  window object by their id attribute or their name attribute, when we give an elelment an id this is available globally as window.idname so i can skip document.getElementById('') accessing idname.addEventListener. this is no recommended
+* we can implement thow our custom embedded browsing window
+
+```
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Hello World!</title>
+    <style media="screen">
+      webview {
+        height: 500px;
+        border: 1px solid grey;
+      }
+      input, button {
+        font-size: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <webview id="webview1" src="page1.html"></webview>
+    <hr>
+    <input id="url" type="text" placeholder="URL to load">
+    <button id="load">Load</button>
+    <h4 id="currentPage"></h4>
+    <script>
+      const webview = document.getElementById('webview1');
+      const url = document.getElementById('url').value;
+      const currentPage = document.getElementById('currentPage');
+      load.addEventListener('click',()=>{
+        webview.loadURL(url);
+        url = '';
+      });
+      
+      webview.addEventListener('did-navigate',(e)=>{
+        currentPage.innerHTML = e.url;
+      });
+    </script>
+  </body>
+</html>
+```
+
+## Section 6 - Shared API
+
+### Lecture 30 - Process
+
+* [Process docs](https://electronjs.org/docs/api/process)
+* [Node Process docs](https://nodejs.org/api/process.html)
+* the shared api is shared between renderer and main but they exist excusively. this is unlike the remote module that uses ipc to make main available in renderer
+* Process is shared object and exist for any node process beign renderer or main
+* electron adds some of it properties and methods to this object
+* we can access the object in main or renderer directly without requiring it. it offers various proerties like type, versions.electron, .chromium .resourcesPath
+* main process type is browser and renderers is renderer. we can check if the process is an Mac App store build or a win store app
+* we can simulate a crash and hang of the process with process.hang() and process.crash(). we could auto recover from an error with mainWindow.reload(). we can also get memoryInfo for our app
+
+### Lecture 31 - Screen
+
+* [Screen doc](https://electronjs.org/docs/api/screen)
+* a small but useful module. allows to get info aboutr user screen sizes and layout. like external monitors (HANDY)
+* we have to understand how screen layouts work
+* in renderer we import screen from electron `const screen = require('electron').screen`
+* we log the `screen.getAllDisplays()`. we get an object per display device but the object has getters and setter methods as the properties might change at any given time
+* to get the screen width of primaryt display i call `displays[0].size.width` using getters but the syntax is like proerties
+* in multidisplay it is useful to get the bounds. the top-left boundary pixel of the screen in a unified grid. we use .bouds.x and bounds.y for this
+* the primary display starts at 0,0 always. the second display depending on our configuration always in relation to the primary screen starting point. e.,g -1440,100
+* we get a perfect layout also events for displays added or removed or even when metrics change. we change our screen direction 90deg and -90deg and log the chandeMetrics object
+
+```
+screen.on('display-metrics-changed',(e,display,changeMetrics) => {
+  console.log(display)
+  console.log(changedMetrics)
+  });
+```
+
+* changed metrics says what changed so we can reconfigure our apps screen based on the configuration.
+* we can set oncCLick event listener to <body> and using screen.getCursorScreenPoint() capture the x,uy coords in the grid
+  * in main process we can use screen.getPrimaryDisplay() pass its size.width and height to the BrowserWindow constructor and launch a full screen borswer
+
+### Lecture 32 - Shell
+
+* [Shell doc](https://electronjs.org/docs/api/shell)
+* [MDN datatransfer doc](https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer)

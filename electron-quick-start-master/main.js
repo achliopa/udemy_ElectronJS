@@ -7,12 +7,13 @@ require("electron-reload")(__dirname)
 const Menu = electron.Menu;
 const MenuItem = electron.MenuItem;
 const Tray = electron.Tray;
+const ipcMain = electron.ipcMain;
 // Module to control application life.
 const app = electron.app
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow
 
-
+global['app_version'] = 1.1;
 
 const path = require('path')
 const url = require('url')
@@ -21,6 +22,12 @@ const url = require('url')
 // be closed automatically when the JavaScript object is garbage collected.
 
 let mainWindow;
+
+
+// ipcMain.on("channel1",(e,args)=> {
+//   console.log(args);
+//   e.sender.send('channel1','Message Received on the main process')
+// });
 
 let contextMenu = new Menu.buildFromTemplate([
   {role: 'copy'},
@@ -59,7 +66,7 @@ app.on('ready', function (e) {
     createTray();
   let winState = windowStateKeeper({
     defaultWidth: 1200,
-    defaultHeight: 600
+    defaultHeight: 1000
   });
   // let appSession = session.fromPartition('persist:partition1');
   // Create the browser window.
