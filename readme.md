@@ -1025,3 +1025,191 @@ screen.on('display-metrics-changed',(e,display,changeMetrics) => {
 
 * [Shell doc](https://electronjs.org/docs/api/shell)
 * [MDN datatransfer doc](https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer)
+* we use shell moduleto open external resources
+```
+      const {shell} = require('electron');
+      shell.openExternal('https://google.com');
+```
+* we use html5 file features to work with files dragged and drop on html elements
+* our dropzone is a div element
+```
+    <div id="filebox">
+      <h3>Drop File Here</h3>
+    </div>
+```
+* we style it
+```
+      #filebox {
+        border: 5px dashed black;
+        padding: 3rem 4rem;
+        float: left;
+      }
+```
+* we write the code to handle file droped of on the element and log it. in deTools we see the path etc
+```
+      filebox.ondrop = (e) => {
+        console.log(e.dataTransfer.files);
+        return false;
+      }
+```
+
+* we log the filepath
+```
+      filebox.ondrop = (e) => {
+        myfile = e.dataTransfer.files[0].path
+        console.log(myfile);
+        return false;
+      }
+```
+* we implement an index.html to create an open an delete file box. which uses shell module to call system methods for operating on the files
+
+```
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Hello World!</title>
+    <style type="text/css" media="screen">
+      .box {
+        border: 5px dashed black;
+        padding: 3rem 4rem;
+        float: left;
+        color: white;
+      }
+      #filebox {
+        background: green;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box" id="filebox">
+      <h3>Open File</h3>
+    </div>
+        <div class="box" id="trashbox">
+      <h3>Open File</h3>
+    </div>
+    <script>
+      const {shell} = require('electron');
+      const filebox = document.getElementById('filebox');
+      const filebox = document.getElementById('trashsbox');
+
+      trashsbox.ondragover = trashsbox.ondragend = trashsbox.ondragleave =
+      filebox.ondragover = filebox.ondragend = filebox.ondragleave = ()=> {
+        return false;
+      }
+
+      filebox.ondrop = (e) => {
+        myfile = e.dataTransfer.files[0].path
+        shell.openItem(myfile)
+        return false;
+      }
+      trashbox.ondrop = (e) => {
+        myfile = e.dataTransfer.files[0].path
+        shell.moveItemToTrash(myfile)
+        return false;
+      }
+    </script>
+  </body>
+</html>
+```
+
+### Lecture 33 - NativeImage
+
+* [nativeImage docs](https://electronjs.org/docs/api/native-image)
+* [MDN dataURIs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs)
+*[dataURIscheme wiki](https://en.wikipedia.org/wiki/Data_URI_scheme)
+* we ve used nativeImage to pass a png image to the tray module
+* we import the module from electron. there are a lot of methods to create a native image from various sources
+* node exposes all its fs to the renderer process. so fs module can be called
+* native image is raw. to give it a filetype we need to save it to a format
+* DataURL is a convenient way to store image as a URi without putting it to disk.
+```
+      const fs = require('fs');
+      const {nativeImage} = require('electron');
+
+      let logo = nativeImage.createFromPath('/home/achliopa/logo_lg.png');
+      console.log(logo.getSize());
+      fs.writeFile('/home/achliopa/logo_lggggg.jpg', logo.toJPEG(180));
+      console.log(logo.toDataURL());
+```
+* dataURL can be passes as source to image tags in html
+
+## Section 7 - Features & Techniques
+
+### Lecture 34 - Clipboard
+
+* [Clipboard Documentation](https://electronjs.org/docs/api/clipboard)
+* clipboard module allows us to copyu/paste eleements to other apps
+* we import it from electron `const {clipboard} = require('electron');`
+* we copy a piece of text from an external app to the clipboard.
+* we can use `clipboard.readText([type])` to pass it to the app
+* we can write to clipboard with `clipboard.writeText('text');`
+* we can copy an image from an external app and pass it to the app with `clipboard.readImage()` then we can convert it to dataURL with .toDataURL() and pass it as source the image tag in our html file
+
+### Lecture 35 - Offscreen Rendering
+
+* [offscreen rendering docs](https://electronjs.org/docs/tutorial/offscreen-rendering)
+* this module allows us to render and interact with the electron browser window as a browser process.
+* electron supports towo modes of offscreen rendering, using the gpu to render or the cpu
+* unless we have to render 3d webGL(we have) or CSS animations we should stick to cpu rendering
+* to use cpu for offscreen rendering we need to disable gpu accelaration.
+* we start from main.js and run `app.disableHardwareAcceleration();`
+* we create anew browserwindow instance
+```
+let bgwin;
+app.on('ready', () => {
+  bgwin = new BrowserWindow({
+    webPreferences: {
+      show: false //browser wont bee seen at all
+      offscreen: true
+    }
+  });
+
+  bgwin.loadURL('https://github.com');
+
+  bgwin.webContents.on('did-finish-load',()=>{
+    console.log(bgwin.getTitle());
+    app.quit();
+  });
+});
+```
+
+* the above code sets the window to render webcontent offline in the background and print the title to console once the content is loaded (in the background)
+* we can instead of finish loading even listen to the paint event which fires everytime there is an update in the render process and save screenshots of the page loading. paint event passes 3 args 
+```
+  fs = require('fs');
+  let i = 1;
+  bgwin.webContents.on('paint',(e,dirtyArea,nativeImage)=>{
+      let img = nativeImage.toPNG();
+      fs.writeFile(`path${i}.png`,img);
+      i++;
+  });
+```
+
+### Lecture 36 - Network Detection
+
+* [online/offline event detection](https://electronjs.org/docs/tutorial/offscreen-rendering)
+* [online/offline events MDN](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorOnLine/Online_and_offline_events)
+* it applies to renderer
+* this module uses native HTML5 capabilities to detect network status . we can get it with `navigator.onLine`
+* we can to status change events
+* 
+```
+window.addEventListener('online',()=>{
+  
+});
+window.addEventListener('offline',()=>{
+  
+});
+```
+we can simulate connectivity in devTools to test that
+
+### Lecture 37 - Battery Status
+
+* [Battery Status API - MDN - obsolete](https://developer.mozilla.org/en-US/docs/Web/API/Battery_Status_API)
+* this is pure HTML5 but is deprecated. it gives battery status
+* only applkies to laptop
+* this returns a promise `window.navigator.getBattery().then((battery)=> {
+  console.log(battery)
+})`
+* we get the BatteryManager object with all the battery related info available

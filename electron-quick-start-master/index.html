@@ -17,7 +17,7 @@
       select {
         -webkit-app-region: no-drag;
       }*/
-      .box {
+/*      .box {
         border: 5px dashed black;
         padding: 3rem 4rem;
         float: left;
@@ -28,16 +28,16 @@
       }
        #trashbox {
         background: orange;
-      }
+      }*/
     </style>
   </head>
   <body>
-    <div class="box" id="filebox">
+<!--     <div class="box" id="filebox">
       <h3>Open File</h3>
     </div>
         <div class="box" id="trashbox">
       <h3>Trash File</h3>
-    </div>
+    </div> -->
     <!-- <webview src="page1.html"></webview> -->
     <!-- <h1>Hello world </h1> -->
     <!-- All of the Node.js APIs are available in this renderer process. -->
@@ -59,25 +59,38 @@
       // const {shell} = require('electron');
       // shell.openExternal('https://google.com');
 
-      const {shell} = require('electron');
-      const filebox = document.getElementById('filebox');
-      const filebox = document.getElementById('trashsbox');
+      // const {shell} = require('electron');
+      // const filebox = document.getElementById('filebox');
+      // const filebox = document.getElementById('trashsbox');
 
-      trashsbox.ondragover = trashsbox.ondragend = trashsbox.ondragleave =
-      filebox.ondragover = filebox.ondragend = filebox.ondragleave = ()=> {
-        return false;
-      }
+      // trashsbox.ondragover = trashsbox.ondragend = trashsbox.ondragleave =
+      // filebox.ondragover = filebox.ondragend = filebox.ondragleave = ()=> {
+      //   return false;
+      // }
 
-      filebox.ondrop = (e) => {
-        myfile = e.dataTransfer.files[0].path
-        shell.openItem(myfile)
-        return false;
-      }
-      trashbox.ondrop = (e) => {
-        myfile = e.dataTransfer.files[0].path
-        shell.moveItemToTrash(myfile)
-        return false;
-      }
+      // filebox.ondrop = (e) => {
+      //   myfile = e.dataTransfer.files[0].path
+      //   shell.openItem(myfile)
+      //   return false;
+      // }
+      // trashbox.ondrop = (e) => {
+      //   myfile = e.dataTransfer.files[0].path
+      //   shell.moveItemToTrash(myfile)
+      //   return false;
+      // }
+
+      // const fs = require('fs');
+      // const {nativeImage} = require('electron');
+
+      // let logo = nativeImage.createFromPath('/home/achliopa/logo_lg.png');
+      // console.log(logo.getSize());
+      // fs.writeFile('/home/achliopa/logo_lggggg.jpg', logo.toJPEG(180));
+      // console.log(logo.toDataURL());
+
+      // const {clipboard} = require('electron');
+      // console.log(clipboard.readText([]));
+
+      consoloe.log(navigator.onLine);
     </script>
   </body>
 </html>
