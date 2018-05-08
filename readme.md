@@ -1213,3 +1213,37 @@ we can simulate connectivity in devTools to test that
   console.log(battery)
 })`
 * we get the BatteryManager object with all the battery related info available
+
+## Section 8 - Project
+
+### Lecture 38 - Project Overview
+
+* we will build a simple bookmarking app for articles to read.
+* he uses jquery, bulma css framework
+* he installs css libraries using bower
+* we cp the project and in the root folder run `npm install`
+* we install bower locally with `npm install --save-dev bower`
+* we add it to the scripts `"bower": "./node_modules/.bin/bower",`
+* we install v0.3.1 of bulma with bower `npm run bower i bulma@0.3.1`
+* as a dependency for bulma we isntall font awesome `npm run bower i font-awesome`
+* having the dependencies ready we use the electron quickstart project like before as a base for the project
+* the default project structure will change only to split main from renderer
+* so we downolad starter app from electron and cp the sources (index.html,renderer.js,main.js) to our project
+* we create a renderer folder and move index.html and renderer.js in it. we rename index.html as main.html (it will be rendered in the main window)
+* we rename renderer.js to app.js (application startup  and ui logic)
+* we add a main.css for our styling in renderer folder and call app.js in main.html sripts tag
+* we instal jquery with npm `npm i --save jquery`. to import it in our project it is not like adding a js file in script. jquery is added as an object so we need to impor it in scripts before app.js as `$ = require('jquery');` to make it available in our scripts like normal syntax etc.
+* we remove boilerplate from main.html
+* we add stylesheet links (bulma,font-awesome,main)
+* we create a new js file in root for mainWindow code (mainWindow.js)
+* we cut all code refering to mainWindow from main.js leaving only global logic in main.js
+* in mainWindow.js we import BrowserWindow, export win object and createWindow() function where we make an  browserwindow instance to global win var . open devtools,load url and set a close listener to dereference it
+* we fix the imports in main.js
+* we run the app. it works fine. also we test in console jquery with $ 
+* we are now ready to add UI elements in our main.html
+* we ad html tags with bulma classes to
+  * an add control group w/ button to add items w/plus sign and a text input with a magnifying glass icon
+  * we add alist to hold our read items again with bulma
+* we are ready to add logic to the app
+
+### Lecture 39 - Submitting new Items
