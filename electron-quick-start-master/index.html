@@ -3,24 +3,42 @@
   <head>
     <meta charset="UTF-8">
     <title>Hello World!</title>
-<!--     <style type="text/css" media="screen">
+    <style type="text/css" media="screen">
 /*      * {
         cursor: default;
       }*/
-      body {
+/*      body {
         height: 100%;
         background-color: red;
-     /*   -webkit-user-select: none;*/
+        -webkit-user-select: none;
         -webkit-app-region: drag;
       }
 
       select {
         -webkit-app-region: no-drag;
+      }*/
+      .box {
+        border: 5px dashed black;
+        padding: 3rem 4rem;
+        float: left;
+        color: white;
       }
-    </style> -->
+      #filebox {
+        background: green;
+      }
+       #trashbox {
+        background: orange;
+      }
+    </style>
   </head>
   <body>
-    <webview src="page1.html"></webview>
+    <div class="box" id="filebox">
+      <h3>Open File</h3>
+    </div>
+        <div class="box" id="trashbox">
+      <h3>Trash File</h3>
+    </div>
+    <!-- <webview src="page1.html"></webview> -->
     <!-- <h1>Hello world </h1> -->
     <!-- All of the Node.js APIs are available in this renderer process. -->
    <!--  We are using Node.js <script>document.write(process.versions.node)</script>,
@@ -35,9 +53,31 @@
     <script>
       // You can also require other files to run in this process
       // require('./renderer.js')
-      const screen = require('electron').screen
-      const displays = screen.getAllDisplays()
-      console.log(displays[0].size.width)
+      // const screen = require('electron').screen
+      // const displays = screen.getAllDisplays()
+      // console.log(displays[0].size.width)
+      // const {shell} = require('electron');
+      // shell.openExternal('https://google.com');
+
+      const {shell} = require('electron');
+      const filebox = document.getElementById('filebox');
+      const filebox = document.getElementById('trashsbox');
+
+      trashsbox.ondragover = trashsbox.ondragend = trashsbox.ondragleave =
+      filebox.ondragover = filebox.ondragend = filebox.ondragleave = ()=> {
+        return false;
+      }
+
+      filebox.ondrop = (e) => {
+        myfile = e.dataTransfer.files[0].path
+        shell.openItem(myfile)
+        return false;
+      }
+      trashbox.ondrop = (e) => {
+        myfile = e.dataTransfer.files[0].path
+        shell.moveItemToTrash(myfile)
+        return false;
+      }
     </script>
   </body>
 </html>
