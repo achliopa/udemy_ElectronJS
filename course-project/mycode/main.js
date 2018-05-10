@@ -1,8 +1,6 @@
 const {app,ipcMain} = require('electron')
 const mainWindow = require('./mainWindow');
 const readItem = require('./readItem')
-// enable electron reload
-require('electron-reload')(__dirname);
 
 // Listen for new read item
 ipcMain.on('new-item',(e,itemURL)=>{

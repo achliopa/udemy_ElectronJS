@@ -1669,8 +1669,60 @@ const template = [
 
 ### Lecture 46 - Application Packaging
 
+* [iconvert icons](https://iconverticons.com/)
+* [Application Distribution](https://electronjs.org/docs/tutorial/application-distribution)
 * [NPM electron-packager](https://www.npmjs.com/package/electron-packager)
 * [electron-packager API doc](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md)
 * we start our packaging effoert from package.json
   * we give aproper name at our app and a description
-  * we remove script section
+  * we remove script section (under the condition that we create a separate folder for packaging our app as we need the scripts for development)
+  * we remove the repository section
+  * we remove the keywords (only needed for open source projects)
+  * update author
+  * remove licence and bug section
+  * update homepage
+  * remove dev dependencies (given we package from a copyof our working dir)
+* we remove electron reload statement
+* we remove openDevTools call
+* electron provides extensive documentation on packaging
+* we will use electron-packager module. we install it globally `npm install -g electron-packager`
+* being in our project root dir we run 'electron-packager .' it fails. it asks for electron version
+* we can put it in package.json dependencies. to avoid bundling it in our app thus bloating size we pass it in command line specifing the version we evelooped our app with (for us 1.8.4) `electron-packager . --electron-version="1.8.4"`
+* packager downloads it and packages the app for our operating system
+* it puts it in a new folder <App name>-<platform> e.g. Readit-linux-x64
+* in this folder we have an executable (depnding on our dev machine op system)
+* in the package folder also in the resources/app folder we have our source files
+* if we want to hide our source files we can package thenm in an asar archive (like a tar file) without compression. our files canbe unpacked and viewed with some tools but hey are protected from common user
+* to see thisin action we remove the package folder and repackage it with the --asar flag true `electron-packager . --electron-version="1.8.4" --asar=true`
+* in the resources folder now we have asar files for our folders
+* to add an icon we add an icon file in the project root directory. we need different formats of an image for an app (our original is 1024x1024 in png format). a png for linus, an ico file for win and icns file for mac
+* there are plenty of tools that do image conversion but we use *iconver icons*
+* in project root folder e create anew folder called icons to put our icons. for ubunctu we will use 64by64 png
+* for linux the icon is not packaged but referenced in the window creator config object
+```
+  this.win = new BrowserWindow({
+    width: 500, 
+    height: 650,
+    minWidth: 350,
+    minHeight: 650,
+    icon: `${__dirname}/icons/64x64.png`
+  });
+```
+* for windows and mac icon is bundled with app. so we sould have an .ico and .icns and .png file named icon in our root folder and an icons folder with various sizes of ng for ubuntu
+* we repackage our project with ` electron-packager . --electron-version="1.8.4" --asar=true -icon=icon --overwrite` setting an icon (no need to pec filetype) and overwrite as we dont delete our package but overwrite it
+* electron-packager provides what we need to take our electron app to app stores
+* Our  app runs smoothly
+
+## Section 9 - Distribution Overview
+
+### Lecture 47 - Distribution Overview
+
+* we will now see how to use the more popular electron-builder together with auto-updates to manage full lifecycle of our app
+* if we are to publish updated outside of app stroes this means we need a dedicated applications update server. this is unwanted complexity. we can achieve same results with github releases
+* we will learn how to sign our code
+
+### Lecture 48 - Electron builder
+
+* [electron-builder API](https://www.electron.build/)
+* [Apple application categories](https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html#//apple_ref/doc/uid/TP40009250-SW8)
+* 
