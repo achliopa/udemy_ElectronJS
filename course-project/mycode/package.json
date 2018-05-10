@@ -1,7 +1,7 @@
 {
-  "name": "electron-quick-start",
+  "name": "Readit",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "description": "Master Electron Course Project",
   "main": "main.js",
   "scripts": {
     "bower": "./node_modules/.bin/bower",
@@ -30,6 +30,7 @@
     "electron-reload": "*"
   },
   "dependencies": {
-    "jquery": "^3.1.1"
+    "jquery": "^3.1.1",
+    "query-string": "^6.1.0"
   }
 }

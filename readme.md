@@ -1514,3 +1514,163 @@ exports.openItem = () => {
 
 ```
 * we call it from tthe double click even (dbclick)
+
+### Lecture 43 - Opening Items in Reader
+
+* we implement readability. in openItem() (item.js) we will use the captured url to pass in to a new window
+
+```
+  // Reader window URL
+  let readerWinURL = `file://${__dirname}/reader.html`;
+
+  // Open item in new proxy BrowserWindow (secure)
+  let readerWin = window.open(readerWinURL, targetItem.data('title'));
+```
+* we use window.open() as this is HTML code not electron so we dont have to manage the window from the app. we have less control but ok
+* this is a way to protect our app from remote content. we now want to load the content in the window in an embedded way. using webview tag
+* webview helps isolate unknown or insecure content we add `<webvew src="about:blank"></webvew>`
+* we dont leave the tag empty because in that case it would fail to load the dom . and we need dom ready event to load our content.
+* in openItem we encode the URI and pass it as query in the html parse
+```
+// open item for reading
+exports.openItem = () => {
+  // only if items have been added
+  if(!this.toreadItems.length) return
+
+  // Open item for reading
+  let targetItem = $('.read-item.is-active');
+
+  // get item's content url (encoded)
+  let contentURL = encodeURIComponent(targetItem.data('url'));
+  
+  // Reader window URL
+  let readerWinURL = `file://${__dirname}/reader.html?url=${contentURL}`;
+
+  // Open item in new proxy BrowserWindow (secure)
+  let readerWin = window.open(readerWinURL, targetItem.data('title'));
+}
+
+```
+* int he reader.html we use query string to extract the url from query decode it and pass it to webview
+```
+      //jquery
+      $ = require('jquery');
+
+      // query-string
+      const queryString = require('query-string');
+
+      // parse query string
+      const queryParams = queryString.parse(location.search);
+      // Get query string 'url'
+      let url = decodeURIComponent(queryParams.url);
+
+      // load remote content once webview is ready
+      $('webview').one('dom-ready',(e)=>{
+        //load item content url into webview
+        e.currentTarget.loadURL(url);
+      });
+```
+* we install *query-dstring* npm module to pass url query string in our html js script `npm i --save query-string`
+& when the reader window loads its balnk till webview url gets loaded. we will replace it with a  spinner
+* we will check for problems while loading the content
+
+### Lecture 44 - Delete Items
+
+* [NPM module query-string](https://www.npmjs.com/package/query-string)
+* we will implement a delete button in the reader window to delete an item. also our selection will move to the next item
+<!-- * we add a html button and style it. in js we will add a click listener to delete the item. but deleteitem will recide in item.js which belongs to another window so how we will communicate the item to delete between browsers? 
+* we will use window.postMessage() native HTML messaging system to communicate with the browser window proxy object. thi is difficult
+* we will use winodw.opener() to access the parent window the one it opened the current one. it does not allow complete access . but it allows us to access javascript in its global scope using eval (we can access methods on the parent windows global scope)
+* eval is unsafw and must be avoided at all cost. but in electron we have complete control on our apps code. eval is bad for browsers
+* we implement deleteItem in items.js
+* we pass the item index from renderer to reader witht he uerl query using query-params to extract it. 
+* we use the windo.eval method to call back the deleteItem window method on the parent
+```
+// Handle mark-read click (delete)
+        $('#mark-read').click(()=>{
+          //parent window
+          window.opener.eval(`deleteItem(${itemIndex})`);
+          window.close();
+        })
+```
+* we implement the deleteItem function (delete from dom and delete from stored array)
+* when we reload the app items are back as we dont persist the change. we fix that by calling saveItems
+```
+// window function (main.js global scope)
+// delete item by index
+window.deleteItem = (i) => {
+  // remove item from DOM
+  $('.read-item').eq(i).remove();
+  // remove from toreadItem array
+  this.toreadItems = this.toreadItems.filter((item,index)=>{
+    return index !== i
+  });
+  // update storage
+  this.saveItems();
+  //select prev item or none if list is empty
+  if(this.toreadItems.length) {
+    let newIndex = (i === 0) ? 0 : i -1;
+    //assign active class to newIndex
+    $('.read-item').eq(newIndex).addClass('is-active');
+  } else {
+    // if no items left put back noitems message
+    $('#no-items').show();
+  }
+};
+```
+
+### Lecture 45 - Application Menu
+
+* we add an app menu with standard functionality and keyboard accelerators
+* we separate menu logic in a separate file
+* to access item.js functions from menu.js click events we make them window global functions
+* element indexing in jquery is 1 based we need to -1 to make them 0 based array index
+* the custom part of menu.js
+```
+// module 
+const {remote} = require('electron');
+
+// menu tempalte object
+const template = [
+  {
+    label: 'Items',
+    submenu: [
+      {
+        label: 'Add New',
+        accelerator: 'CmdOrCtrl+o',
+        click () {$('.open-add-modal').click()}
+      },
+      {
+        label: 'Read Item',
+        accelerator: 'CmdOrCtrl+Enter',
+        click () { window.openItem()}
+      },
+      {
+        label: 'Delete Item',
+        accelerator: 'CmdOrCtrl+Backspace',
+        click () { window.deleteItem() }
+      },
+      {
+        label: 'Open in Browser',
+        accelerator: 'CmdOrCtrl+Shift+Enter',
+        click () { window.openInBrowser()}
+      },
+      {
+        type: 'separator',
+      },
+      {
+        label: 'Search Items',
+        accelerator: 'CmdOrCtrl+s',
+        click () { $('#search').focus()}
+      }
+    ]
+  },
+```
+
+### Lecture 46 - Application Packaging
+
+* [NPM electron-packager](https://www.npmjs.com/package/electron-packager)
+* [electron-packager API doc](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md)
+* we start our packaging effoert from package.json
+  * we give aproper name at our app and a description
+  * we remove script section
