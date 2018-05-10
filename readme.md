@@ -1247,3 +1247,270 @@ we can simulate connectivity in devTools to test that
 * we are ready to add logic to the app
 
 ### Lecture 39 - Submitting new Items
+
+* we will add a modal window (overlay) to add a new item. 
+* it will have an text field to enter the url;, an add button and a cancel button
+* we use bulma modal. and add the html code for modal before the body closing tag
+* we add button logic in app.js to show/hide the modal
+
+```
+// Show add modal
+$('.open-add-modal').click(()=>{
+  $('#add-modal').addClass('is-active');
+});
+
+// Hide add modal
+$('.close-add-modal').click(()=>{
+  $('#add-modal').removeClass('is-active');
+});
+```
+
+* when we click the add button we capture user input in the url text field
+
+```
+//handle add-modal submission
+$('#add-button').click(()=>{
+
+  // Get URL from input
+  let newItemURL = $('#item-input').val();
+  if(newItemURL) {
+    console.log(newItemURL);
+  }
+});
+```
+
+* we simulate button click with enter press (we call the even from the listener)
+
+```
+//simulate add click on enter
+$('#item-input').keyup((e) => {
+  if(e.key === 'Enter') $('#add-button').click();
+});
+```
+* for the bookmark we want to save the title and a thumbnail of the page. we will do it by sending the newItemURL via IPC to the main process which will trigger an offscreen browserWindow to load the newItemURL and get the data for our list item. the main  process will respond back to the app.js with ipc the new item with all the data inside
+* we start by writing the send method to send url to main through ipc from inside the click event listener callback `ipcRenderer.send('new-item', newItemURL);` we open a dedicated channel 
+* in main we impor ipcMain and listen to the message queue
+```
+ipcMain.on('new-item',(e,itemURL)=>{
+  console.log(itemURL);
+});
+
+```
+* we respond to this message with mockdata (to make our channel duplex) and simulate the delay of retrieveing the dsata with a timeout
+
+```
+// Listen for new read item
+ipcMain.on('new-item',(e,itemURL)=>{
+  setTimeout(()=>{
+    e.sender.send("new-item-success","new read item");
+  },2000);
+});
+```
+* in app.js we listen to the channel and cl the data
+```
+// Listen for new item from main
+ipcRenderer.on('new-item-success',(e, item)=> {
+  console.log(item);
+});
+```
+
+* we see a bug as we can resubmit the request while waiting and thus flood the channel. so we dosable the input button while waiting
+```
+    $('#item-input').prop('disabled',true);
+    $('.close-add-button').addClass('is-disabled');
+    $('#add-button').addClass('is-loading');
+    // send URL to main process via IPC
+    ipcRenderer.send('new-item', newItemURL);
+```
+* once we receive reply  we reenable all and close modal
+```
+  $('#add-modal').removeClass('is-active');
+  $('#item-input').prop('disabled',false);
+  $('.close-add-button').removeClass('is-disabled');
+  $('#add-button').removeClass('is-loading');
+});
+```
+
+### Lecture 40 - Retrieving Item Details
+
+* in this lecture we foculs on the process of offscreen rendering in another BrowserWindow and get the items Title and Screenshot once loaded
+* we add a new win moduule for offscreen rendering. we will create a new file readItem.js to host our code for this win and import it to main.js to use it as follows
+
+```
+ipcMain.on('new-item',(e,itemURL)=>{
+  readItem(itemURL,(item)=>{
+     e.sender.send("new-item-success",item);
+  });
+});
+```
+* we create aglobal var window in our new file (this prevent it from being garbage collectedc)
+* we implemnt the readItem function that is exported
+```
+// New readItem  method
+module.exports = (url,callback) => {
+  // create new offscreen BrowserWindow
+  bgItemWin = new BrowserWindow({
+    width: 1000,
+    height: 1000,
+    show: false,
+    webPreferences: {
+      offscreen: true
+    }
+  });
+
+  // Load read item
+  bgItemWin.loadURL(url);
+
+  // wait for page to finish loading
+  bgItemWin.webContents.on('did-finish-load',()=>{
+    // get screenshot (thumbnail)
+    bgItemWin.webContents.capturePage((image)=>{
+      //get image to data URI
+      let screenshot = image.toDataURL();
+
+      //get page title
+      let title = bgItemWin.getTitle();
+
+      // return new item via callback
+      callback({title, screenshot, url })
+
+      //clean up
+      bgItemWin.close();
+      bgItemWin = null;
+    });
+  });
+}
+```
+* we test it in main and SUCCESSS!
+
+### Lecture 41 - Showing & Persisting Items
+
+* we go back tot the rendering process to use the newly acquired item passed back by the main process and prepare them for showing in UI. 
+* we can add the logic to the app.js but the idea is to add another layer that will handle this functionaily of handling  the items reserving app.js for handling the UI iteself
+* we call the nee module items.js in the same renderer dir. we use it in the reply channel listener `items.addItem(item);`
+* we export in items.js a addItem function which takes the item object, creates an HTML snippet and appends it to read-list id tag element
+```
+// add nee item
+exports.addItem = (item) => {
+  // hide 'no-items' message
+  $('#no-items').hide();
+
+  //create html string for new item - bulma panel block
+  // we can implement some templating e.g mustache
+  // we keep it simple and use ES6 interplated strings
+  let itemHTML = `<a class="panel-block read-item">
+            <figure class="image has-shadow is-64x64 thumb">
+              <img src="${item.screenshot}">
+            </figure>
+            <h2 class="title is-4 column">${item.title}</h2>
+          </a>`;
+
+  //append to read-list
+  $('#read-list').append(itemHTML);
+};
+```
+* we test it and SUCCESS
+* we see as we keep adding items that when the list exceeds the frame it gets scrollable and the header with the list. we want the header anchored to the top. we fixed this in main.css
+```
+.panel {
+  padding-top: 52px;
+  margin-bottom: 0 !important;
+}
+
+.panel-heading {
+  position: fixed;
+  width: 100%;
+  margin-top: -52px;
+  z-index: 100;
+}
+```
+* we dont persist the items once the app reloads they are gone
+* we need to keep track of the items. we create an array in items.js. we persist to local storage an array of items
+```
+
+// track items with array
+exports.toreadItems = JSON.parse(localStorage.getItem('toreadItems')) || [];
+
+// save items to localstorage
+exports.saveItems = ()  => {
+  localStorage.setItem('toreadItems', JSON.stringify(this.toreadItems))
+}
+```
+* before we show a new item we persist it in app.js message reply listener
+```
+// Add item to items array
+  items.toreadItems.push(item);
+  // save items to storage
+  items.saveItems();
+  // Add item
+```
+* we populate the list at app refresh/restart by iterating through the array 
+```
+// add items when app starts
+if(items.toreadItems.length)
+  items.toreadItems.forEach(items.addItem);
+```
+
+### Lecture 42 - Selecting Items for Opening
+
+* we have no control over the items we create
+* we want to filter the list of items by title using the input field. we implemente an event handler of keyup event to capture letter grain functionality.fa-toggle-left
+* we get back the array (through class selection) iterate through it and show or hide depending on match
+
+```
+// filter items by title
+$('#search').keyup((e) => {
+  //get current search input value
+  let filter = $(e.currentTarget).val().toLowerCase();
+
+  $('.read-item').each((i, el) => {
+    $(el).text().toLowerCase().includes(filter) ? $(el).show(): $(el).hide();
+  });
+});
+```
+
+* we now want to be able to select an item. bulma provides the *is-active*. if i add the class to one of the items it is styled differently
+* in the add item to list when we recreate the list we add click event listener for all item (first we remove existing ones and add new). we pass in a function
+* in this function we dont remove bulma is-active class from all and add it to the clicked item
+* we add this selected class to the first item at app startup (why?) in the init code where we populate the list `$('.read-item:first()').addClass('is-active');`
+* if our list is empty and we add the first item is not selected
+* in the ipc response listener for new item we add select class to this item
+```
+  //if this is the first item
+  if(items.toreadItems.length === 1)
+    $('.read-item:first()').addClass('is-active');
+```
+* we want to add the ability to move and down in items using up and down key
+* we add a generic key event handler in app.js and implement the callback in items.js
+```
+// select next/prev item
+exports.changeItem = (direction) => {
+  // get the active item
+  let activeItem = $('.read-item.is-active');
+
+  // check direction and get next or previous read-item
+  let newItem = (direction === 'down') ? activeItem.next('.read-item') : activeItem.prev('.read-item');
+
+  // only if item found change selection
+  if(newItem.length) {
+    activeItem.removeClass('is-active');
+    newItem.addClass('is-active');
+  }
+}
+```
+* we are now ready to implement opening the item. we add a method for opening the item (using a data attribute of the tag which we add to the injected HTML interplated literal)
+```
+// open item for reading
+exports.openItem = () => {
+  // only if items have been added
+  if(!this.toreadItems.length) return
+
+  // Open item for reading
+  let targetItem = $('.read-item.is-active');
+
+  // get item's content url
+  let contentURL = targetItem.data('url');
+}
+
+```
+* we call it from tthe double click even (dbclick)
