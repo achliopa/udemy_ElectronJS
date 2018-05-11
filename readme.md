@@ -1779,7 +1779,7 @@ const template = [
 * app certicates in windows are more generic, they are not auto detectable from electron-buildetr, we have to tell in configuration where to look for the cerificates.
 * the relevant proerty is *cerificateFile*. electron-builder prefers the use of env variable CSC_LINK, but we use the package.json
 * we will export the newly created self signed certificate for windows. in keychain list we filter for Ceritificates. right click on it -> export -> Fileformat: p12. we are prompted to create a certificate password. he doesn use one. we have a certificate file at dektop (on mac),
-we move it in the project and add it to .gitgnore IMPORTANT to exclude it for github. in .gitgnore we add folders dist/ private/ and noe_modules/
+we move it in the project and add it to .gitgnore IMPORTANT to exclude it for github. in .gitgnore we add folders dist/ private/ and noe_modules/ and .DS_Store
 * in package.json in win build object we add 
 ```
     "win": {
@@ -1788,3 +1788,41 @@ we move it in the project and add it to .gitgnore IMPORTANT to exclude it for gi
     },
 ```
 * first is the location and second is a param to accept selfsignedsignatures
+* we do a win build
+* to create code signing cerificate in windows we use create-self-cerificate command. we add it to package.json scripts `"make-cert": "electron-builder create-self-signed-cert -p stackacademy" passhing the publisher flag`
+* in win build cofig object the publisherName must match the publish flag `"publisherName": "stackacademy"`
+* we run `npm run make-cert` and have stackacademy.pfx cert in our root. we move it to private. we change certificatefile param in package.json for windows to this file ` "certificatFile": "private/stackacademy.pfx",`
+
+### Lecture 49 - Publishing Releases
+
+* [Electron build - publich](https://www.electron.build/configuration/publish)
+* [create github releases](https://help.github.com/articles/creating-releases/)
+* we will now create a release version and publish it. for the purpose of this lesson we will use github
+* we create a repo on github to host our app releases
+* we can make it a public repo so our releases are public but keep our code private via .gitignore leaveing maybe a readme.file
+* we add remote github repo and choose not to exclude our app code in .gitignore
+* we add commit and push to remote
+* we want to create our first release
+* we click to remeases and github says there are no releases yet
+* we can create a release version of our app
+* whenever we create a new release electron-builder will check for that release and automaticaly upload the build targets to github. thi is why we ignored the dist directory in our app, electron-builder takes care of uploading this files with correct names etc
+* the reason we want our project initialized as github repo is that electron-builder will watch in our project for github credentials so it will know where to upload our rreleases to
+* we create a new release. we add a tag version v1.0.0 a description and name and save it as a draft. we dont want it published untill we are ready with all our release attached. 
+* we need to give electron-builder permission to interact with our repo. we need a reusable token
+* in our profile settings -> developer settings => personal access tokens
+* we generate a new token. name it, give it repo permissions and generate it
+* we cp the token val to clipboard and put it in a GH_TOKEN.txt file in private folder
+* we have our first release ready and waiting in draft mode
+* to publish from electron-builder we add a publish attr in all 3 build configs in package.json `"publish": ["github"],`
+* we will publish using one of our build commands adding the publish flag (--publish or -p) and one of 4 options (onTag, onTagorDraft,always,never). we will do it in console as we want to have control over publishing
+* we change our version in package.json to match our tag version in github
+* our command will be `GH_TOKEN=<ourgithubtoken> electron-builder build -m -p 'onTagOrDraft` for global electron-build installation
+* our distribution is uploaded on github. we can publish release from github (edit release-> publish)
+* in the dist directory where we have the published builds we inpect our mac .yaml file (for mac). if we upload our files manually we should make sur eour file names matche the ones in the yaml file
+* in mac the app-update.ayaml file is in contents/resources/ and is importat if we build for windows in mac
+
+### Lecture 51 - AutoUpdater Module
+
+* [eclectron-builder autoupdate](https://www.electron.build/auto-update)
+* [electron-log](https://github.com/megahertz/electron-log)
+* 

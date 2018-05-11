@@ -10,7 +10,8 @@
     "mac": "electron-builder -m",
     "win": "electron-builder -w",
     "linux": "electron-builder -l",
-    "build": "electron-build -mwl"
+    "build": "electron-build -mwl",
+    "make-cert": "electron-builder create-self-signed-cert -p stackacademy"
   },
   "build": {
     "appId": "com.stackacademy.readdit",
@@ -18,14 +19,18 @@
       "buildResources": "."
     },
     "mac": {
+      "publish": ["github"],
       "category": "public.app-category.productivity",
       "target": "dmg"
     },
     "win": {
-      "certificatFile": "private/readit.p12",
-      "verifyUpdateCodeSignature": false
+      "publish": ["github"],
+      "certificateFile": "private/stackacademy.pfx",
+      "verifyUpdateCodeSignature": false,
+      "publisherName": "stackacademy"
     },
     "linux": {
+      "publish": ["github"],
       "category": "Network"
     }
   },
