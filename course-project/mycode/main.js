@@ -1,6 +1,7 @@
 const {app,ipcMain} = require('electron')
 const mainWindow = require('./mainWindow');
 const readItem = require('./readItem')
+const updater = require('./updater');
 
 // Listen for new read item
 ipcMain.on('new-item',(e,itemURL)=>{
@@ -15,7 +16,13 @@ ipcMain.on('new-item',(e,itemURL)=>{
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', mainWindow.createWindow)
+app.on('ready', ()=>{
+  // crete main window
+  mainWindow.createWindow();
+
+  //check for updates after x seconds
+  setTimeout(updater.check, 2000);
+});
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {

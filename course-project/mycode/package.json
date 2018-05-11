@@ -1,6 +1,6 @@
 {
   "name": "Readit",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "Master Electron Course Project",
   "main": "main.js",
   "author": "Stackackademy.tv",
@@ -11,7 +11,8 @@
     "win": "electron-builder -w",
     "linux": "electron-builder -l",
     "build": "electron-build -mwl",
-    "make-cert": "electron-builder create-self-signed-cert -p stackacademy"
+    "make-cert": "electron-builder create-self-signed-cert -p stackacademy",
+    "publish": "electron-builder -l -p onTagOrDraft"
   },
   "build": {
     "appId": "com.stackacademy.readdit",
@@ -19,22 +20,30 @@
       "buildResources": "."
     },
     "mac": {
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "category": "public.app-category.productivity",
       "target": "dmg"
     },
     "win": {
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "certificateFile": "private/stackacademy.pfx",
       "verifyUpdateCodeSignature": false,
       "publisherName": "stackacademy"
     },
     "linux": {
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "category": "Network"
     }
   },
   "dependencies": {
+    "electron-log": "^2.2.14",
+    "electron-updater": "^2.21.10",
     "jquery": "^3.1.1",
     "query-string": "^6.1.0"
   },

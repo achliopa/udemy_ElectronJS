@@ -1825,4 +1825,198 @@ we move it in the project and add it to .gitgnore IMPORTANT to exclude it for gi
 
 * [eclectron-builder autoupdate](https://www.electron.build/auto-update)
 * [electron-log](https://github.com/megahertz/electron-log)
-* 
+* electron framework includes an autoUpdater module. we wont use it
+* we will use the autoupdater that comes with electron-updater module, electron builder docs explain why it is preferable. the biggest one is that there is no need for a separate update server
+* in our main.js file we import the updater module from alocal file `const updater = require('./updater');
+* this module exports a single method to check for updates. we call it int he app ready listener callback after a timeout delay of 2secs
+```
+app.on('ready', ()=>{
+  // crete main window
+  mainWindow.createWindow();
+
+  //check for updates after x seconds
+  setTimeout(updater.check, 2000);
+});
+```
+
+* in updater.js we import autoUpdater from electron-updfater `// Modules
+const {autoUpdater} = require('electron-updater');` which we install `npm i --save electron-updater`
+* then we export the check methods which call an autoUpdater method
+* autoUpdater works only with signed apps so we need to sign package and run the app. this means we dont have access to terminal for debugging. it does log in a file though logging. for logging electron-log module is used `autoUpdater.logger = require('electron-log');`
+* we set logging at info level (all events) `autoUpdater.logger.transports.file.level = 'info';`
+* our check method calls autoupdater.checkforupdates
+```
+exports.check = () => {
+  // Start update check
+  autoUpdater.checkForUpdates();
+};
+```
+* this method connects to gighub and checks if there is a new release. if there is will update our app. every check will be looged to the logfile. the location of the file depends among platforms (see the docs)
+* we run our built app in linux and tail the log at `~/.config/Readit/log.log`
+* the log works
+```
+[2018-05-11 22:46:30.700] [info] Checking for update
+[2018-05-11 22:46:30.849] [info] Generated new staging user ID: 131a7cd3-8beb-5af9-93e4-7683156b381d
+[2018-05-11 22:46:33.454] [info] Update for version 1.0.0 is not available (latest version: 1.0.0, downgrade is disallowed).
+[2018-05-11 22:47:21.255] [info] Checking for update
+[2018-05-11 22:47:25.150] [info] Update for version 1.0.0 is not available (latest version: 1.0.0, downgrade is disallowed).
+```
+* to see it in action we downgrade the app (package.json version to 0.9.0) build it and run the built. it will see there is anewer version and update it. our log shows it is found and downloaded
+```
+[2018-05-11 22:55:39.925] [info] Checking for update
+[2018-05-11 22:55:42.183] [info] Found version 1.0.0 (url: Readit-1.0.0-x86_64.AppImage)
+[2018-05-11 22:55:42.185] [info] Downloading update from Readit-1.0.0-x86_64.AppImage
+[2018-05-11 22:55:42.209] [info] No cached update available
+[2018-05-11 22:55:43.057] [info] File has 60 changed blocks
+[2018-05-11 22:55:43.094] [info] Full: 49,195.34 KB, To download: 1,255.13 KB (3%)
+[2018-05-11 22:55:43.120] [info] Differential download: https://github.com/achliopa/Readit/releases/download/v1.0.0/Readit-1.0.0-x86_64.AppImage
+[2018-05-11 22:55:43.338] [info] Redirect to https://github-production-release-asset-2e65be.s3.amazonaws.com/133058066/978f44be-5550-11e8-8838-b108c1c2a5e4
+[2018-05-11 22:55:46.343] [info] New version 1.0.0 has been downloaded to /home/achliopa/.config/Readit/Readit-1.0.0-x86_64.AppImage
+```
+
+### Lecture 52 - App Update
+
+* [HTML Progress Element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/progress)
+* In previous lec we checked automatically for updates and downloaded them. we want to implement a modal that informs the user and asks his cosent to update the app, track the download and ask user if he wants to update the app and update the app to newer version
+* we disable autodownload with `autoUpdater.autoDownload = false;`
+* we will use the autoUpdater event to prompt the useronce an updatte is found. the event is *update-available*
+* we show a messagebox prompting for a choice.
+* if user chose to update we create a browserwindwo to show a progressbar. this window through ipc gets the progressstatus from updater.fa-js
+* once done we show another message box ot ask to quit and update . if yes we use autoupdater.quitANdUpdate() method
+
+```
+// check for updates
+exports.check = () => {
+  // Start update check
+  autoUpdater.checkForUpdates();
+
+  //listen for download(update) found
+  autoUpdater.on('update-available', () => {
+    
+    // track progress percent
+    let downloadProgress = 0;
+
+    // prompt user to update
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: 'A new version of Readit is available. Update now?',
+      buttons: ['Update','No']
+    }, (buttonIndex) => {
+      // if not update button, return
+      if(buttonIndex!== 0) return
+
+      //else start the download and show download progress window
+      autoUpdater.downloadUpdate();
+      // Create progress Window
+      let progressWin = new BrowserWindow({
+        width: 350,
+        height: 35,
+        useContentSize: true,
+        autoHideMenuBar: true,
+        maximize: false,
+        fullscreen: false,
+        fullscreenenable: false,
+        resizable:  false
+      });
+
+      // load progress HTML
+      progressWin.loadURL(`file://${__dirname}/renderer/progress.html`);
+
+      //handle win close
+      progressWin.on('closed', () => progressWin = null );
+
+      // listen for progress request from channel
+      ipcMain.on('download-progress-request', (e) => {
+        e.returnVallue = downloadProgress ;
+      });
+
+      // track download progress in autoUpdater
+      autoUpdater.on('download-progress', (d)=> {
+        downloadProgress = d.percent;
+        // autoUpdater.logger.info(downloadProgress);
+      });
+
+      //listen for completed update download
+      autoUpdater.on('update-downloaded', () => {
+        // close progressWIn
+        if (progressWin) progressWin.close();
+
+        // promt user to quit aand install
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Update Ready',
+          message: 'A new version of Readit is ready. Quit and install now?',
+          buttons: ['Yes','Later']
+        }, (buttonIndex) => {
+          //udpate if 'yes'
+          if(buttonIndex === 0) autoUpdater.quitAndInstall();
+        });
+      });
+    });
+  });
+```
+
+* progress.html
+```
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Dowloading Readit Update</title>
+  </head>
+  <body>
+    <progress style="width:100%" value="0" max="100">0%</progress>
+  </body>
+  <script>
+  // require jQuery
+  $ =  require('jquery');
+  // Require IPC
+    const {ipcRenderer} = require('electron');
+
+  // request progress every second
+  setInterval(() => {
+    //request a sync response via IPC
+    let progress = ipcRenderer.sendSync('download-progress-request');
+    // update progress element
+    $('progress').val(progress);
+  },1000);
+  </script>
+</html>
+
+```
+
+* Lecture 53 - Release and update
+
+* we add a publish script in package.json `    "publish": "electron-builder -l -p onTagOrDraft"` we build only for linux because we develop in linux and have no certificates
+* we ll build and installl version 1.0.0 of our app then release an update to v1.1.0
+a warkthrough of product release flow
+* we change the version in package.json to v1.0.0
+* we add a change to see the update. +button background red
+* we save and build run and see the red cross
+* we fix the bug and set package.json version to 1.1.0
+* as our next build will do publish as well we create adraft release in github with tag v1.1.0
+* if we add our source code to the build (not ignore it) we should commit our code and push to github as it bundles our code as well
+* get the token from the prvate dir file and build + publish `GH_TOKEN=token npm run publish`
+* our app is still open onse published we  get the message to update we update and it is fixed
+
+### Section 10 - Mac Touch Bar
+
+* we dond have a Mac to test so we skip it
+
+### Lecture 54 - Touch bar Basics
+
+* [electron quickstart github](https://github.com/electron/electron-quick-start)
+* [touchbar simulator for mac](https://sindresorhus.com/touch-bar-simulator/)
+* [touchbar](https://electronjs.org/docs/api/touch-bar)
+* [touchbar label](https://electronjs.org/docs/api/touch-bar-label)
+* [touchbar button](https://electronjs.org/docs/api/touch-bar-button)
+* [touchbar spacer](https://electronjs.org/docs/api/touch-bar-spacer)
+
+### Lecture 55 - Advanced Layouts
+
+* [touchbar colorpicker electron](https://electronjs.org/docs/api/touch-bar-color-picker)
+* [touchbar slider](https://electronjs.org/docs/api/touch-bar-slider)
+* [touchbar popover](https://electronjs.org/docs/api/touch-bar-popover)
+
+### Lecture 56 - Touch bar Integration
