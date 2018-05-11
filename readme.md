@@ -1578,7 +1578,7 @@ exports.openItem = () => {
 
 * [NPM module query-string](https://www.npmjs.com/package/query-string)
 * we will implement a delete button in the reader window to delete an item. also our selection will move to the next item
-<!-- * we add a html button and style it. in js we will add a click listener to delete the item. but deleteitem will recide in item.js which belongs to another window so how we will communicate the item to delete between browsers? 
+* we add a html button and style it. in js we will add a click listener to delete the item. but deleteitem will recide in item.js which belongs to another window so how we will communicate the item to delete between browsers? 
 * we will use window.postMessage() native HTML messaging system to communicate with the browser window proxy object. thi is difficult
 * we will use winodw.opener() to access the parent window the one it opened the current one. it does not allow complete access . but it allows us to access javascript in its global scope using eval (we can access methods on the parent windows global scope)
 * eval is unsafw and must be avoided at all cost. but in electron we have complete control on our apps code. eval is bad for browsers
@@ -1725,4 +1725,66 @@ const template = [
 
 * [electron-builder API](https://www.electron.build/)
 * [Apple application categories](https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html#//apple_ref/doc/uid/TP40009250-SW8)
-* 
+* electron builder is a full deatured tool. it allows packaging,signing and releasing our app
+* it has a highly configurable workflow
+* it allows us to publish/release new versions of our app automatically
+* we remove our packaged app `rm -rf Readit-linux-x64`
+* we install electron-builder globally `npm i -g electron-builder`
+* having globall installed modules is not good. we will later do local installs of our build tools and call them from package.json scripts as project dependencies, we dont want electron-builder bundled in the final package (install it as a dev dependency) `npm i --save-dev electron-builder`
+* we will use the build command of the electron-builder cli. we can build for mac/win/linux in a mac but only for win/linux in win
+* we first build for mac `electron-builder build -m zip` -m means mac and zip is the target of the build 
+* build complains because app is not signed
+* we get a new folder in our project named *dist* for distribution which hosts the build. in it there is a zip file with the built app and a platform specific dir with the source of the app
+* to run the app we extract the zip and run the executable
+* to stop using the global module and use the local installed module we add a script in our package.json file. we add 2 scripts (a start to run our prebuilr app using electron and a build command for mac, not applicable if ewe build from win). in electron-builder build command is the default so we can ommit it
+```
+  "scripts": {
+    "start": "electron .",
+    "mac": "electron-builder -m"
+  },
+```
+* we need to tackle the icon. electron-buoilder doc says that icons must be places in a directory  called build. we make a new dir in project root called *build* and put the icons (in 3 formats for every platform) in there
+* alternative we have to specify another dir with the buildresources flag pointing to the dir
+* we put our build configuration in package.json
+```
+ "build": {
+    "appId": "com.stackacademy.readdit",
+    "directories": {
+      "buildResources": "."
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg"
+    }
+  },
+```
+* we set trhe appid and the dir where our resources aare  and also mac specific configuration (appstore, target)
+* we build for mac `npm run mac` and see our script in action. in dist we have only dmg file, we mount it in mac and app is instllaed with an icon
+* linux and win have their build options whic
+
+### Lecture 48 - Code Signing
+
+* [Apple Dev Program](https://developer.apple.com/programs/)
+* [Comodo COde Signing](https://www.comodo.com/business-security/code-signing-certificates/code-signing.php)
+* [Electron-builder code signing](https://www.electron.build/code-signing)
+* code signing is important  for people to trust our app, if not signed platforms will complain about our app
+* also auto update module we will implement wont work without it
+* self signed certificate is ok for development and testing but for a real world app we need one from a trusted authority
+* in electron-builder docs there is a section for code-signing. it has a bunch of env ironment variable we must set up
+* to get a code siging certificTE FOR APPLE Is straight forward if we have enrolled in apple developers program
+* for MAC: we open keychain access app -> Menu -> Cerificate Assistant -> Create a Certificate -> Add name, Identity Type: Self Signed Root, Cerificate Type: Code Signing -> Confirm -> Our self signed cerificate is added to the keychain (slect all items). Right click on it -> Get Info -> expand trust section -> change when using this certificate : Always trust (treat it as an apple certificate). For our machine is OK. for other machines installing our app it will complain
+* we run the mac build (from mac) 'npm run mac' the build gives no complains, it asks our pswd to sign the app
+* we remove the build target attribute for mac in package.json as we want electron-build to choose the default package type for releases
+* net he dows a windows build from mac. windows accepts 2 types of certificates a) EV Code Signing Certificate b) Code Signing Ceritificate. 
+* app certicates in windows are more generic, they are not auto detectable from electron-buildetr, we have to tell in configuration where to look for the cerificates.
+* the relevant proerty is *cerificateFile*. electron-builder prefers the use of env variable CSC_LINK, but we use the package.json
+* we will export the newly created self signed certificate for windows. in keychain list we filter for Ceritificates. right click on it -> export -> Fileformat: p12. we are prompted to create a certificate password. he doesn use one. we have a certificate file at dektop (on mac),
+we move it in the project and add it to .gitgnore IMPORTANT to exclude it for github. in .gitgnore we add folders dist/ private/ and noe_modules/
+* in package.json in win build object we add 
+```
+    "win": {
+      "certificatFile": "private/readit.p12",
+      "verifyUpdateCodeSignature": false
+    },
+```
+* first is the location and second is a param to accept selfsignedsignatures
